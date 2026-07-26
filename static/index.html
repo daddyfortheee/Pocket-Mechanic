@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0f172a" />
+  <link rel="manifest" href="/static/manifest.json" />
+  <link rel="stylesheet" href="/static/styles.css?v=4" />
+  <title>Pocket Mechanic</title>
+</head>
+<body>
+  <header class="topbar">
+    <button class="brand" data-page="home" aria-label="Home"><span class="logo">PM</span><span><strong>Pocket Mechanic</strong><small>Project Atlas 0.4</small></span></button>
+    <span id="connection" class="connection">Local</span>
+  </header>
+
+  <main class="shell">
+    <section id="page-home" class="page active">
+      <div class="hero compact">
+        <p class="eyebrow">YOUR REPAIR COMMAND CENTER</p>
+        <h1>What are we fixing?</h1>
+        <p>Choose a system, save it in your garage, then diagnose before replacing parts.</p>
+      </div>
+
+      <div class="category-grid">
+        <button class="category-tile" data-diagnose="automotive"><span>🚗</span><strong>Automotive</strong><small>Cars and trucks</small></button>
+        <button class="category-tile" data-diagnose="motorcycle"><span>🏍️</span><strong>Motorcycle</strong><small>Bikes and ATVs</small></button>
+        <button class="category-tile" data-diagnose="equipment"><span>🚜</span><strong>Equipment</strong><small>Small engines and tools</small></button>
+        <button class="category-tile" data-diagnose="appliance"><span>🧺</span><strong>Appliances</strong><small>Home appliances</small></button>
+        <button class="category-tile" data-diagnose="home"><span>🏠</span><strong>Home Systems</strong><small>Electrical, plumbing, HVAC</small></button>
+        <button class="category-tile" data-diagnose="diy"><span>🛠️</span><strong>DIY Projects</strong><small>Build and repair</small></button>
+      </div>
+
+      <section class="card quick-actions">
+        <div class="sectionhead"><div><p class="eyebrow">QUICK TOOLS</p><h2>Start here</h2></div></div>
+        <div class="action-grid">
+          <button data-page="diagnose"><span>🔎</span>Quick diagnosis</button>
+          <button data-page="garage"><span>🚘</span>My Garage</button>
+          <button data-page="obd"><span>🔌</span>OBD-II lookup</button>
+          <button data-page="library"><span>📚</span>Repair library</button>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="sectionhead"><h2>Recent work</h2><button id="clearHistory" class="text-button">Clear</button></div>
+        <div id="homeHistory" class="history"></div>
+      </section>
+    </section>
+
+    <section id="page-diagnose" class="page">
+      <div class="page-title"><button class="back" data-page="home">←</button><div><p class="eyebrow">TEST FIRST</p><h1>Quick Diagnosis</h1></div></div>
+      <form id="diagnosisForm" class="card">
+        <label>Category<select id="category" required>
+          <option value="automotive">Automotive</option><option value="motorcycle">Motorcycle</option><option value="equipment">Equipment</option><option value="appliance">Appliance</option><option value="home">Home system</option><option value="diy">DIY project</option>
+        </select></label>
+        <label>Saved item<select id="profileSelect"><option value="">None selected</option></select></label>
+        <label>What is it doing?<textarea id="symptom" required minlength="5" placeholder="Describe the exact symptom, when it happens, warning lights, noises, smells, and anything already tested."></textarea></label>
+        <button class="primary" type="submit">Run diagnosis</button><p id="status" class="muted"></p>
+      </form>
+      <section id="result" class="card result hidden" aria-live="polite"></section>
+    </section>
+
+    <section id="page-garage" class="page">
+      <div class="page-title"><button class="back" data-page="home">←</button><div><p class="eyebrow">YOUR MACHINES</p><h1>My Garage</h1></div></div>
+      <section class="card">
+        <h2>Add an item</h2>
+        <form id="garageForm" class="form-grid">
+          <label>Name<input id="garageName" required placeholder="My Silverado" /></label>
+          <label>Type<select id="garageCategory"><option value="automotive">Automotive</option><option value="motorcycle">Motorcycle</option><option value="equipment">Equipment</option><option value="appliance">Appliance</option><option value="home">Home system</option></select></label>
+          <label>Year<input id="garageYear" type="number" min="1900" max="2100" placeholder="1988" /></label>
+          <label>Make<input id="garageMake" placeholder="Chevrolet" /></label>
+          <label>Model<input id="garageModel" placeholder="K2500" /></label>
+          <label>Engine / details<input id="garageEngine" placeholder="5.7L V8" /></label>
+          <label class="wide">Notes<textarea id="garageNotes" placeholder="Mileage, model number, modifications, known issues..."></textarea></label>
+          <button class="primary wide" type="submit">Save to garage</button>
+        </form>
+      </section>
+      <section class="card"><div class="sectionhead"><h2>Saved items</h2><span id="garageCount" class="badge">0</span></div><div id="garageList" class="garage-list"></div></section>
+    </section>
+
+    <section id="page-obd" class="page">
+      <div class="page-title"><button class="back" data-page="home">←</button><div><p class="eyebrow">CODE READER</p><h1>OBD-II Lookup</h1></div></div>
+      <section class="card">
+        <form id="obdForm" class="inline-form"><input id="obdCode" maxlength="5" placeholder="P0300" required /><button class="primary">Look up</button></form>
+        <p class="muted">Offline starter library: P0300, P0171, P0420, P0456, U0100.</p>
+        <div id="obdResult"></div>
+      </section>
+    </section>
+
+    <section id="page-library" class="page">
+      <div class="page-title"><button class="back" data-page="home">←</button><div><p class="eyebrow">REFERENCE</p><h1>Repair Library</h1></div></div>
+      <div class="library-grid">
+        <article class="card library-card"><span>⚡</span><h2>Electrical basics</h2><p>Voltage-drop testing, continuity, grounds, fuses, relays, and connector inspection.</p></article>
+        <article class="card library-card"><span>🔧</span><h2>Diagnostic workflow</h2><p>Verify the complaint, inspect, test, confirm the failed part, then repair and re-test.</p></article>
+        <article class="card library-card"><span>🛡️</span><h2>Safety gates</h2><p>Stop-work rules for fuel, fire, high voltage, lifting, pressure, and rotating equipment.</p></article>
+        <article class="card library-card"><span>🧰</span><h2>Tool guides</h2><p>Multimeter, test light, scan tool, compression gauge, pressure gauge, and torque wrench.</p></article>
+      </div>
+      <section class="card coming"><h2>Growing library</h2><p>This section is the foundation for vehicle-specific procedures, appliance service guides, wiring diagrams, torque specifications, and parts references.</p></section>
+    </section>
+
+    <section id="page-history" class="page">
+      <div class="page-title"><button class="back" data-page="home">←</button><div><p class="eyebrow">SAVED LOCALLY</p><h1>Repair History</h1></div></div>
+      <section class="card"><div id="fullHistory" class="history"></div></section>
+    </section>
+  </main>
+
+  <nav class="bottom-nav" aria-label="Main navigation">
+    <button data-page="home" class="active"><span>⌂</span>Home</button>
+    <button data-page="garage"><span>🚘</span>Garage</button>
+    <button data-page="diagnose" class="diagnose-nav"><span>＋</span>Diagnose</button>
+    <button data-page="library"><span>📚</span>Library</button>
+    <button data-page="history"><span>🕘</span>History</button>
+  </nav>
+
+  <script src="/static/app.js?v=4"></script>
+</body>
+</html>

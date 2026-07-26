@@ -1,4 +1,6 @@
-# Pocket Mechanic MVP 0.1
+cd ~
+unzip -o ~/storage/downloads/Pocket-Mechanic-Android-1.0.zip
+cd ~/Pocket-Mechanic-Android# Pocket Mechanic MVP 0.1
 
 This is the first runnable software build from **Project Atlas**.
 

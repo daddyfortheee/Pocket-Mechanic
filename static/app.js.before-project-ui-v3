@@ -1,0 +1,296 @@
+
+function isProjectMode() {
+  const category = ($("#category")?.value || "").toLowerCase();
+
+  return [
+    "diy",
+    "project",
+    "home improvement",
+    "construction",
+    "craft"
+  ].some(type => category.includes(type));
+}
+
+const $ = (s) => document.querySelector(s);
+const $$ = (s) => [...document.querySelectorAll(s)];
+const HISTORY_KEY = 'pocket-mechanic-history-v4';
+const GARAGE_KEY = 'pocket-mechanic-garage-v4';
+
+function esc(v){return String(v ?? '').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));}
+function read(key){try{return JSON.parse(localStorage.getItem(key)||'[]')}catch{return[]}}
+function write(key,value){localStorage.setItem(key,JSON.stringify(value));}
+function showPage(name){$$('.page').forEach(p=>p.classList.toggle('active',p.id===`page-${name}`));$$('.bottom-nav button').forEach(b=>b.classList.toggle('active',b.dataset.page===name));window.scrollTo({top:0,behavior:'smooth'});}
+
+$$('[data-page]').forEach(b=>b.addEventListener('click',()=>showPage(b.dataset.page)));
+$$('[data-diagnose]').forEach(b=>b.addEventListener('click',()=>{$('#category').value=b.dataset.diagnose;showPage('diagnose');}));
+
+function renderHistory(){
+  const items=read(HISTORY_KEY);
+  const html=items.length?items.map(x=>`<div class="history-item"><strong>${esc(x.category)}</strong><div>${esc(x.symptom)}</div><small class="muted">${esc(x.title)} · ${Math.round(x.confidence*100)}%</small></div>`).join(''):'<p class="muted">No saved diagnoses yet.</p>';
+  $('#homeHistory').innerHTML=html; $('#fullHistory').innerHTML=html;
+}
+$('#clearHistory').addEventListener('click',()=>{write(HISTORY_KEY,[]);renderHistory();});
+
+function renderGarage(){
+  const items=read(GARAGE_KEY); $('#garageCount').textContent=items.length;
+  $('#garageList').innerHTML=items.length?items.map(x=>`<article class="garage-item"><div><h3>${esc(x.name)}</h3><div class="garage-meta">${esc([x.year,x.make,x.model,x.engine].filter(Boolean).join(' · '))}</div>${x.notes?`<small>${esc(x.notes)}</small>`:''}</div><div class="garage-actions"><button data-use="${esc(x.id)}">Diagnose</button><button data-delete="${esc(x.id)}">✕</button></div></article>`).join(''):'<p class="muted">Your garage is empty. Add your first vehicle, appliance, or piece of equipment.</p>';
+  $('#profileSelect').innerHTML='<option value="">None selected</option>'+items.map(x=>`<option value="${esc(x.id)}">${esc(x.name)}</option>`).join('');
+  $$('[data-delete]').forEach(b=>b.onclick=()=>{write(GARAGE_KEY,items.filter(x=>x.id!==b.dataset.delete));renderGarage();});
+  $$('[data-use]').forEach(b=>b.onclick=()=>{const x=items.find(i=>i.id===b.dataset.use);if(x){$('#category').value=x.category;$('#profileSelect').value=x.id;showPage('diagnose');}});
+}
+
+$('#garageForm').addEventListener('submit',e=>{
+  e.preventDefault(); const items=read(GARAGE_KEY);
+  items.unshift({id:crypto.randomUUID?crypto.randomUUID():String(Date.now()),name:$('#garageName').value.trim(),category:$('#garageCategory').value,year:$('#garageYear').value,make:$('#garageMake').value.trim(),model:$('#garageModel').value.trim(),engine:$('#garageEngine').value.trim(),notes:$('#garageNotes').value.trim()});
+  write(GARAGE_KEY,items);e.target.reset();renderGarage();
+});
+
+function renderResult(data){
+  const r=$('#result');r.classList.remove('hidden');r.innerHTML=`<h2>Diagnostic result</h2><p>${esc(data.summary)}</p><div class="safety">${esc(data.safety_message)}</div>${data.causes.map(c=>`<article class="cause"><h3>${esc(c.title)} <span class="confidence">${Math.round(c.confidence*100)}%</span></h3><p>${esc(c.why)}</p><h4>Checks</h4><ol>${c.checks.map(v=>`<li>${esc(v)}</li>`).join('')}</ol><h4>Repair path</h4><ul>${c.repair.map(v=>`<li>${esc(v)}</li>`).join('')}</ul></article>`).join('')}`;r.scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+
+const selectedMedia = [];
+const MAX_IMAGES = 6;
+const MAX_VIDEOS = 1;
+const MAX_IMAGE_SIZE = 15 * 1024 * 1024;
+const MAX_VIDEO_SIZE = 75 * 1024 * 1024;
+
+function formatBytes(bytes){
+  if(bytes < 1024) return `${bytes} B`;
+  if(bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function mediaType(file){
+  if(file.type.startsWith('image/')) return 'image';
+  if(file.type.startsWith('video/')) return 'video';
+  return 'unknown';
+}
+
+function setMediaError(message=''){
+  $('#mediaError').textContent = message;
+}
+
+function addMediaFiles(fileList){
+  setMediaError();
+
+  for(const file of [...fileList]){
+    const type = mediaType(file);
+
+    if(type === 'unknown'){
+      setMediaError('That file type is not supported.');
+      continue;
+    }
+
+    const imageCount = selectedMedia.filter(x => mediaType(x.file) === 'image').length;
+    const videoCount = selectedMedia.filter(x => mediaType(x.file) === 'video').length;
+
+    if(type === 'image' && imageCount >= MAX_IMAGES){
+      setMediaError(`You may attach up to ${MAX_IMAGES} pictures.`);
+      continue;
+    }
+
+    if(type === 'video' && videoCount >= MAX_VIDEOS){
+      setMediaError('You may attach one video.');
+      continue;
+    }
+
+    if(type === 'image' && file.size > MAX_IMAGE_SIZE){
+      setMediaError(`${file.name} is larger than the 15 MB picture limit.`);
+      continue;
+    }
+
+    if(type === 'video' && file.size > MAX_VIDEO_SIZE){
+      setMediaError(`${file.name} is larger than the 75 MB video limit.`);
+      continue;
+    }
+
+    const duplicate = selectedMedia.some(
+      x => x.file.name === file.name &&
+           x.file.size === file.size &&
+           x.file.lastModified === file.lastModified
+    );
+
+    if(duplicate) continue;
+
+    selectedMedia.push({
+      id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random()),
+      file,
+      url: URL.createObjectURL(file)
+    });
+  }
+
+  renderMediaPreview();
+
+  $('#cameraInput').value = '';
+  $('#mediaInput').value = '';
+  $('#videoInput').value = '';
+}
+
+function removeMedia(id){
+  const index = selectedMedia.findIndex(x => x.id === id);
+  if(index === -1) return;
+
+  URL.revokeObjectURL(selectedMedia[index].url);
+  selectedMedia.splice(index, 1);
+  renderMediaPreview();
+}
+
+function renderMediaPreview(){
+  const preview = $('#mediaPreview');
+  const count = selectedMedia.length;
+
+  $('#mediaCount').textContent = `${count} ${count === 1 ? 'file' : 'files'}`;
+
+  preview.innerHTML = selectedMedia.map(item => {
+    const file = item.file;
+    const type = mediaType(file);
+
+    const visual = type === 'image'
+      ? `<img src="${item.url}" alt="Selected repair picture">`
+      : `<video src="${item.url}" controls preload="metadata"></video>`;
+
+    return `
+      <article class="media-item">
+        ${visual}
+        <button
+          class="remove-media"
+          type="button"
+          data-remove-media="${item.id}"
+          aria-label="Remove ${esc(file.name)}"
+        >×</button>
+        <div class="media-details">
+          <span class="media-name">${esc(file.name)}</span>
+          <span class="media-size">${formatBytes(file.size)}</span>
+        </div>
+      </article>
+    `;
+  }).join('');
+
+  $$('[data-remove-media]').forEach(button => {
+    button.addEventListener('click', () => removeMedia(button.dataset.removeMedia));
+  });
+}
+
+async function uploadSelectedMedia(){
+  if(!selectedMedia.length) return [];
+
+  const formData = new FormData();
+
+  selectedMedia.forEach(item => {
+    formData.append('files', item.file, item.file.name);
+  });
+
+  const response = await fetch('/api/uploads', {
+    method: 'POST',
+    body: formData
+  });
+
+  if(!response.ok){
+    let message = `Media upload failed (${response.status})`;
+
+    try{
+      const error = await response.json();
+      message = error.detail || message;
+    }catch{}
+
+    throw new Error(message);
+  }
+
+  const result = await response.json();
+  return result.files || [];
+}
+
+$('#cameraInput').addEventListener('change', event => {
+  addMediaFiles(event.target.files);
+});
+
+$('#mediaInput').addEventListener('change', event => {
+  addMediaFiles(event.target.files);
+});
+
+$('#videoInput').addEventListener('change', event => {
+  addMediaFiles(event.target.files);
+});
+
+$('#diagnosisForm').addEventListener('submit', async event => {
+  event.preventDefault();
+
+  const button = $('#diagnoseButton');
+  
+  const projectMode = isProjectMode();
+button.disabled = true;
+  setMediaError();
+
+  try{
+    $('#status').textContent = selectedMedia.length
+      ? 'Uploading pictures and video…'
+      : 'Analyzing symptoms…';
+
+    const uploadedMedia = await uploadSelectedMedia();
+
+    $('#status').textContent = 'Analyzing symptoms…';
+
+    const payload = {
+      category: $('#category').value,
+      symptom: $('#symptom').value,
+      answers: {
+        media: uploadedMedia
+      },
+      profile_id: $('#profileSelect').value || null
+    };
+
+    const response = await fetch('/api/diagnoses', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(payload)
+    });
+
+    if(!response.ok){
+      let message = `Request failed (${response.status})`;
+
+      try{
+        const error = await response.json();
+        message = error.detail || message;
+      }catch{}
+
+      throw new Error(message);
+    }
+
+    const data = await response.json();
+    renderResult(data);
+
+    const top = data.causes[0];
+    const items = read(HISTORY_KEY);
+
+    items.unshift({
+      category: data.category,
+      symptom: data.symptom,
+      title: top.title,
+      confidence: top.confidence,
+      created_at: data.created_at,
+      media_count: uploadedMedia.length
+    });
+
+    write(HISTORY_KEY, items.slice(0, 30));
+    renderHistory();
+
+    $('#status').textContent = uploadedMedia.length
+      ? `Diagnosis complete with ${uploadedMedia.length} attachment${uploadedMedia.length === 1 ? '' : 's'}.`
+      : projectMode ? "Project plan complete." : "Diagnosis complete.";
+  }catch(error){
+    $('#status').textContent = `${projectMode ? "Could not build project plan" : "Could not run diagnosis"}: ${error.message}`;
+  }finally{
+    button.disabled = false;
+  }
+});
+
+$('#obdForm').addEventListener('submit',async e=>{
+  e.preventDefault();const code=$('#obdCode').value.trim().toUpperCase();const out=$('#obdResult');out.innerHTML='<p class="muted">Looking up code…</p>';
+  try{const res=await fetch(`/api/obd/${encodeURIComponent(code)}`);if(!res.ok)throw new Error('This code is not in the offline starter library yet.');const d=await res.json();out.innerHTML=`<article class="obd-card"><p class="eyebrow">${esc(d.system)}</p><h2>${esc(d.code)} — ${esc(d.title)}</h2><h3>First checks</h3><ol>${d.first_checks.map(x=>`<li>${esc(x)}</li>`).join('')}</ol></article>`;}catch(err){out.innerHTML=`<div class="safety">${esc(err.message)}</div>`;}
+});
+
+async function connection(){try{const r=await fetch('/health');const d=await r.json();$('#connection').textContent=`Local · v${d.version}`;}catch{$('#connection').textContent='Offline';}}
+if('serviceWorker'in navigator)navigator.serviceWorker.register('/static/service-worker.js').catch(()=>{});
+renderHistory();renderGarage();connection();

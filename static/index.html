@@ -175,5 +175,102 @@
   </nav>
 
   <script src="/static/app.js?v=6"></script>
+
+<script>
+/* POCKET_INLINE_PROJECT_UI */
+(() => {
+  function setLabelText(label, newText) {
+    if (!label) return;
+
+    for (const node of label.childNodes) {
+      if (
+        node.nodeType === Node.TEXT_NODE &&
+        node.textContent.trim()
+      ) {
+        node.textContent = newText + "\n";
+        return;
+      }
+    }
+
+    const span = document.createElement("span");
+    span.textContent = newText;
+    label.insertBefore(span, label.firstChild);
+  }
+
+  function updateProjectUi() {
+    const category = document.querySelector("#category");
+    const isProject =
+      (category?.value || "").toLowerCase() === "diy";
+
+    const title = document.querySelector("#assistTitle");
+    const symptom = document.querySelector("#symptom");
+    const symptomLabel = symptom?.closest("label");
+    const button = document.querySelector("#diagnoseButton");
+    const mediaHeading = document.querySelector(
+      "#page-diagnose .media-heading h2"
+    );
+    const mediaHelp = document.querySelector(
+      "#page-diagnose .media-help"
+    );
+
+    if (isProject) {
+      if (title) title.textContent = "Project Planner";
+
+      setLabelText(
+        symptomLabel,
+        "What are you building, installing, or repairing?"
+      );
+
+      if (symptom) {
+        symptom.placeholder =
+          "Describe the project, work area, measurements, materials you already have, desired result, budget, and tools available.";
+      }
+
+      if (button) button.textContent = "Build project plan";
+
+      if (mediaHeading) {
+        mediaHeading.textContent = "Add project photos or video";
+      }
+
+      if (mediaHelp) {
+        mediaHelp.textContent =
+          "Add clear photos or video of the work area, layout, measurements, existing materials, damage, or the result you want to recreate.";
+      }
+    } else {
+      if (title) title.textContent = "Quick Diagnosis";
+
+      setLabelText(symptomLabel, "What is it doing?");
+
+      if (symptom) {
+        symptom.placeholder =
+          "Describe the exact symptom, when it happens, warning lights, noises, smells, and anything already tested.";
+      }
+
+      if (button) button.textContent = "Run diagnosis";
+
+      if (mediaHeading) {
+        mediaHeading.textContent = "Add photos or video";
+      }
+    }
+  }
+
+  function startProjectUi() {
+    const category = document.querySelector("#category");
+
+    if (category) {
+      category.addEventListener("change", updateProjectUi);
+    }
+
+    updateProjectUi();
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", startProjectUi);
+  } else {
+    startProjectUi();
+  }
+})();
+</script>
+
 </body>
 </html>

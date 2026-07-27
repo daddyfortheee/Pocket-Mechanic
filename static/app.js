@@ -1,3 +1,16 @@
+
+function isProjectMode() {
+  const category = ($("#category")?.value || "").toLowerCase();
+
+  return [
+    "diy",
+    "project",
+    "home improvement",
+    "construction",
+    "craft"
+  ].some(type => category.includes(type));
+}
+
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => [...document.querySelectorAll(s)];
 const HISTORY_KEY = 'pocket-mechanic-history-v4';
@@ -36,10 +49,241 @@ function renderResult(data){
   const r=$('#result');r.classList.remove('hidden');r.innerHTML=`<h2>Diagnostic result</h2><p>${esc(data.summary)}</p><div class="safety">${esc(data.safety_message)}</div>${data.causes.map(c=>`<article class="cause"><h3>${esc(c.title)} <span class="confidence">${Math.round(c.confidence*100)}%</span></h3><p>${esc(c.why)}</p><h4>Checks</h4><ol>${c.checks.map(v=>`<li>${esc(v)}</li>`).join('')}</ol><h4>Repair path</h4><ul>${c.repair.map(v=>`<li>${esc(v)}</li>`).join('')}</ul></article>`).join('')}`;r.scrollIntoView({behavior:'smooth',block:'start'});
 }
 
-$('#diagnosisForm').addEventListener('submit',async e=>{
-  e.preventDefault();$('#status').textContent='Analyzing symptoms…';
-  const payload={category:$('#category').value,symptom:$('#symptom').value,answers:{},profile_id:$('#profileSelect').value||null};
-  try{const res=await fetch('/api/diagnoses',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});if(!res.ok)throw new Error(`Request failed (${res.status})`);const data=await res.json();renderResult(data);const top=data.causes[0];const items=read(HISTORY_KEY);items.unshift({category:data.category,symptom:data.symptom,title:top.title,confidence:top.confidence,created_at:data.created_at});write(HISTORY_KEY,items.slice(0,30));renderHistory();$('#status').textContent='Diagnosis complete.';}catch(err){$('#status').textContent=`Could not run diagnosis: ${err.message}`;}
+
+const selectedMedia = [];
+const MAX_IMAGES = 6;
+const MAX_VIDEOS = 1;
+const MAX_IMAGE_SIZE = 15 * 1024 * 1024;
+const MAX_VIDEO_SIZE = 75 * 1024 * 1024;
+
+function formatBytes(bytes){
+  if(bytes < 1024) return `${bytes} B`;
+  if(bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function mediaType(file){
+  if(file.type.startsWith('image/')) return 'image';
+  if(file.type.startsWith('video/')) return 'video';
+  return 'unknown';
+}
+
+function setMediaError(message=''){
+  $('#mediaError').textContent = message;
+}
+
+function addMediaFiles(fileList){
+  setMediaError();
+
+  for(const file of [...fileList]){
+    const type = mediaType(file);
+
+    if(type === 'unknown'){
+      setMediaError('That file type is not supported.');
+      continue;
+    }
+
+    const imageCount = selectedMedia.filter(x => mediaType(x.file) === 'image').length;
+    const videoCount = selectedMedia.filter(x => mediaType(x.file) === 'video').length;
+
+    if(type === 'image' && imageCount >= MAX_IMAGES){
+      setMediaError(`You may attach up to ${MAX_IMAGES} pictures.`);
+      continue;
+    }
+
+    if(type === 'video' && videoCount >= MAX_VIDEOS){
+      setMediaError('You may attach one video.');
+      continue;
+    }
+
+    if(type === 'image' && file.size > MAX_IMAGE_SIZE){
+      setMediaError(`${file.name} is larger than the 15 MB picture limit.`);
+      continue;
+    }
+
+    if(type === 'video' && file.size > MAX_VIDEO_SIZE){
+      setMediaError(`${file.name} is larger than the 75 MB video limit.`);
+      continue;
+    }
+
+    const duplicate = selectedMedia.some(
+      x => x.file.name === file.name &&
+           x.file.size === file.size &&
+           x.file.lastModified === file.lastModified
+    );
+
+    if(duplicate) continue;
+
+    selectedMedia.push({
+      id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random()),
+      file,
+      url: URL.createObjectURL(file)
+    });
+  }
+
+  renderMediaPreview();
+
+  $('#cameraInput').value = '';
+  $('#mediaInput').value = '';
+  $('#videoInput').value = '';
+}
+
+function removeMedia(id){
+  const index = selectedMedia.findIndex(x => x.id === id);
+  if(index === -1) return;
+
+  URL.revokeObjectURL(selectedMedia[index].url);
+  selectedMedia.splice(index, 1);
+  renderMediaPreview();
+}
+
+function renderMediaPreview(){
+  const preview = $('#mediaPreview');
+  const count = selectedMedia.length;
+
+  $('#mediaCount').textContent = `${count} ${count === 1 ? 'file' : 'files'}`;
+
+  preview.innerHTML = selectedMedia.map(item => {
+    const file = item.file;
+    const type = mediaType(file);
+
+    const visual = type === 'image'
+      ? `<img src="${item.url}" alt="Selected repair picture">`
+      : `<video src="${item.url}" controls preload="metadata"></video>`;
+
+    return `
+      <article class="media-item">
+        ${visual}
+        <button
+          class="remove-media"
+          type="button"
+          data-remove-media="${item.id}"
+          aria-label="Remove ${esc(file.name)}"
+        >×</button>
+        <div class="media-details">
+          <span class="media-name">${esc(file.name)}</span>
+          <span class="media-size">${formatBytes(file.size)}</span>
+        </div>
+      </article>
+    `;
+  }).join('');
+
+  $$('[data-remove-media]').forEach(button => {
+    button.addEventListener('click', () => removeMedia(button.dataset.removeMedia));
+  });
+}
+
+async function uploadSelectedMedia(){
+  if(!selectedMedia.length) return [];
+
+  const formData = new FormData();
+
+  selectedMedia.forEach(item => {
+    formData.append('files', item.file, item.file.name);
+  });
+
+  const response = await fetch('/api/uploads', {
+    method: 'POST',
+    body: formData
+  });
+
+  if(!response.ok){
+    let message = `Media upload failed (${response.status})`;
+
+    try{
+      const error = await response.json();
+      message = error.detail || message;
+    }catch{}
+
+    throw new Error(message);
+  }
+
+  const result = await response.json();
+  return result.files || [];
+}
+
+$('#cameraInput').addEventListener('change', event => {
+  addMediaFiles(event.target.files);
+});
+
+$('#mediaInput').addEventListener('change', event => {
+  addMediaFiles(event.target.files);
+});
+
+$('#videoInput').addEventListener('change', event => {
+  addMediaFiles(event.target.files);
+});
+
+$('#diagnosisForm').addEventListener('submit', async event => {
+  event.preventDefault();
+
+  const button = $('#diagnoseButton');
+  
+  const projectMode = isProjectMode();
+button.disabled = true;
+  setMediaError();
+
+  try{
+    $('#status').textContent = selectedMedia.length
+      ? 'Uploading pictures and video…'
+      : 'Analyzing symptoms…';
+
+    const uploadedMedia = await uploadSelectedMedia();
+
+    $('#status').textContent = 'Analyzing symptoms…';
+
+    const payload = {
+      category: $('#category').value,
+      symptom: $('#symptom').value,
+      answers: {
+        media: uploadedMedia
+      },
+      profile_id: $('#profileSelect').value || null
+    };
+
+    const response = await fetch('/api/diagnoses', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(payload)
+    });
+
+    if(!response.ok){
+      let message = `Request failed (${response.status})`;
+
+      try{
+        const error = await response.json();
+        message = error.detail || message;
+      }catch{}
+
+      throw new Error(message);
+    }
+
+    const data = await response.json();
+    renderResult(data);
+
+    const top = data.causes[0];
+    const items = read(HISTORY_KEY);
+
+    items.unshift({
+      category: data.category,
+      symptom: data.symptom,
+      title: top.title,
+      confidence: top.confidence,
+      created_at: data.created_at,
+      media_count: uploadedMedia.length
+    });
+
+    write(HISTORY_KEY, items.slice(0, 30));
+    renderHistory();
+
+    $('#status').textContent = uploadedMedia.length
+      ? `Diagnosis complete with ${uploadedMedia.length} attachment${uploadedMedia.length === 1 ? '' : 's'}.`
+      : projectMode ? "Project plan complete." : "Diagnosis complete.";
+  }catch(error){
+    $('#status').textContent = `${projectMode ? "Could not build project plan" : "Could not run diagnosis"}: ${error.message}`;
+  }finally{
+    button.disabled = false;
+  }
 });
 
 $('#obdForm').addEventListener('submit',async e=>{

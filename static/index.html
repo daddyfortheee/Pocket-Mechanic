@@ -5,12 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#0f172a" />
   <link rel="manifest" href="/static/manifest.json" />
-  <link rel="stylesheet" href="/static/styles.css?v=4" />
+  <link rel="stylesheet" href="/static/styles.css?v=5" />
   <title>Pocket Mechanic</title>
 </head>
 <body>
   <header class="topbar">
-    <button class="brand" data-page="home" aria-label="Home"><span class="logo">PM</span><span><strong>Pocket Mechanic</strong><small>Project Atlas 0.4</small></span></button>
+    <button class="brand" data-page="home" aria-label="Home"><span class="logo">PM</span><span><strong>Pocket Mechanic</strong><small>Project Atlas 0.5</small></span></button>
     <span id="connection" class="connection">Local</span>
   </header>
 
@@ -48,14 +48,76 @@
     </section>
 
     <section id="page-diagnose" class="page">
-      <div class="page-title"><button class="back" data-page="home">←</button><div><p class="eyebrow">TEST FIRST</p><h1>Quick Diagnosis</h1></div></div>
+      <div class="page-title"><button class="back" data-page="home">←</button><div><p class="eyebrow">TEST FIRST</p><h1 id="assistTitle">Quick Diagnosis</h1></div></div>
       <form id="diagnosisForm" class="card">
         <label>Category<select id="category" required>
           <option value="automotive">Automotive</option><option value="motorcycle">Motorcycle</option><option value="equipment">Equipment</option><option value="appliance">Appliance</option><option value="home">Home system</option><option value="diy">DIY project</option>
         </select></label>
         <label>Saved item<select id="profileSelect"><option value="">None selected</option></select></label>
-        <label>What is it doing?<textarea id="symptom" required minlength="5" placeholder="Describe the exact symptom, when it happens, warning lights, noises, smells, and anything already tested."></textarea></label>
-        <button class="primary" type="submit">Run diagnosis</button><p id="status" class="muted"></p>
+        <label>What is it doing?
+          <textarea id="symptom" required minlength="5" placeholder="Describe the exact symptom, when it happens, warning lights, noises, smells, and anything already tested."></textarea>
+        </label>
+
+        <section class="media-uploader">
+          <div class="media-heading">
+            <div>
+              <p class="eyebrow">OPTIONAL MEDIA</p>
+              <h2>Add photos or video</h2>
+            </div>
+            <span id="mediaCount" class="badge">0 files</span>
+          </div>
+
+          <p class="muted media-help">
+            Add a clear picture of the full item, its brand logo, model-number label,
+            damaged part, wiring, leak, or warning display. You may also add a short video
+            showing the sound, movement, vibration, smoke, or flashing lights.
+          </p>
+
+          <div class="media-buttons">
+            <label class="media-button">
+              <span>📷</span>
+              Take pictures
+              <input
+                id="cameraInput"
+                class="file-input"
+                type="file"
+                accept="image/*"
+                capture="environment"
+                multiple
+              />
+            </label>
+
+            <label class="media-button">
+              <span>🖼️</span>
+              Choose files
+              <input
+                id="mediaInput"
+                class="file-input"
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/heic,image/heif,video/mp4,video/webm,video/quicktime"
+                multiple
+              />
+            </label>
+
+            <label class="media-button">
+              <span>🎥</span>
+              Record video
+              <input
+                id="videoInput"
+                class="file-input"
+                type="file"
+                accept="video/*"
+                capture="environment"
+              />
+            </label>
+          </div>
+
+          <div id="mediaPreview" class="media-preview"></div>
+          <p id="mediaError" class="media-error" role="alert"></p>
+        </section>
+
+        <button id="diagnoseButton" class="primary" type="submit">Run diagnosis</button>
+        <p id="status" class="muted"></p>
       </form>
       <section id="result" class="card result hidden" aria-live="polite"></section>
     </section>
@@ -112,6 +174,6 @@
     <button data-page="history"><span>🕘</span>History</button>
   </nav>
 
-  <script src="/static/app.js?v=4"></script>
+  <script src="/static/app.js?v=6"></script>
 </body>
 </html>

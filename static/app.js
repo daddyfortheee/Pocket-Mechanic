@@ -294,3 +294,121 @@ $('#obdForm').addEventListener('submit',async e=>{
 async function connection(){try{const r=await fetch('/health');const d=await r.json();$('#connection').textContent=`Local · v${d.version}`;}catch{$('#connection').textContent='Offline';}}
 if('serviceWorker'in navigator)navigator.serviceWorker.register('/static/service-worker.js').catch(()=>{});
 renderHistory();renderGarage();connection();
+
+/* POCKET_PROJECT_UI_V3 */
+(() => {
+  function projectUiMode() {
+    const category = document.querySelector("#category");
+    return (category?.value || "").toLowerCase() === "diy";
+  }
+
+  function findSymptomLabel() {
+    const symptom = document.querySelector("#symptom");
+    return symptom ? symptom.closest("label") : null;
+  }
+
+  function updateProjectInterface() {
+    const isProject = projectUiMode();
+
+    const title = document.querySelector("#assistTitle");
+    const symptom = document.querySelector("#symptom");
+    const symptomLabel = findSymptomLabel();
+    const button = document.querySelector("#diagnoseButton");
+    const mediaHeading = document.querySelector(
+      "#page-diagnose .media-heading h2"
+    );
+    const mediaHelp = document.querySelector(
+      "#page-diagnose .media-help"
+    );
+
+    if (isProject) {
+      if (title) {
+        title.textContent = "Project Planner";
+      }
+
+      if (symptomLabel) {
+        const textNode = Array.from(symptomLabel.childNodes).find(
+          node =>
+            node.nodeType === Node.TEXT_NODE &&
+            node.textContent.trim()
+        );
+
+        if (textNode) {
+          textNode.textContent =
+            "What are you building, installing, or repairing?";
+        }
+      }
+
+      if (symptom) {
+        symptom.placeholder =
+          "Describe the project, work area, measurements, materials you already have, desired result, budget, and tools available.";
+      }
+
+      if (button) {
+        button.textContent = "Build project plan";
+      }
+
+      if (mediaHeading) {
+        mediaHeading.textContent = "Add project photos or video";
+      }
+
+      if (mediaHelp) {
+        mediaHelp.textContent =
+          "Add clear photos or video of the work area, layout, measurements, existing materials, damage, or the result you want to recreate.";
+      }
+    } else {
+      if (title) {
+        title.textContent = "Quick Diagnosis";
+      }
+
+      if (symptomLabel) {
+        const textNode = Array.from(symptomLabel.childNodes).find(
+          node =>
+            node.nodeType === Node.TEXT_NODE &&
+            node.textContent.trim()
+        );
+
+        if (textNode) {
+          textNode.textContent = "What is it doing?";
+        }
+      }
+
+      if (symptom) {
+        symptom.placeholder =
+          "Describe the exact symptom, when it happens, warning lights, noises, smells, and anything already tested.";
+      }
+
+      if (button) {
+        button.textContent = "Run diagnosis";
+      }
+
+      if (mediaHeading) {
+        mediaHeading.textContent = "Add photos or video";
+      }
+
+      if (mediaHelp) {
+        mediaHelp.textContent =
+          "Add a clear picture of the full item, its brand logo, model-number label, damaged part, wiring, leak, or warning display. You may also add a short video showing the sound, movement, vibration, smoke, or flashing lights.";
+      }
+    }
+  }
+
+  function initializeProjectInterface() {
+    const category = document.querySelector("#category");
+
+    if (category) {
+      category.addEventListener("change", updateProjectInterface);
+    }
+
+    updateProjectInterface();
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener(
+      "DOMContentLoaded",
+      initializeProjectInterface
+    );
+  } else {
+    initializeProjectInterface();
+  }
+})();

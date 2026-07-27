@@ -297,18 +297,7 @@ renderHistory();renderGarage();connection();
 
 /* POCKET_PROJECT_UI_V3 */
 (() => {
-if (projectMode) {
-    label.textContent = "What are we building?";
-    textarea.placeholder =
-        "Describe the project you want to build, install, remodel, repair, or complete.";
-    button.textContent = "Create Project Plan";
-} else {
-    label.textContent = "What is it doing?";
-    textarea.placeholder =
-        "Describe the exact symptom, when it happens, warning lights, noises, smells, and anything already tested.";
-    button.textContent = "Run Diagnosis";
-}
-/  function projectUiMode() {
+  function projectUiMode() {
     const category = document.querySelector("#category");
     return (category?.value || "").toLowerCase() === "diy";
   }

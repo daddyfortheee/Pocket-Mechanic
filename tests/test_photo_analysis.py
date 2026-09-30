@@ -3,7 +3,7 @@ from fastapi.testclient import TestClient
 from app.main import app, UPLOADED_MEDIA
 from app.vision_engine import VisionUnavailableError
 
-client = TestClient(app)
+client = TestClient(app, base_url='https://pocket.test', headers={'Origin':'https://pocket.test'})
 
 def request(media):
     return client.post('/api/diagnoses', json={'category':'appliance','symptom':'The oven does not heat','answers':{'media':media}})
@@ -17,7 +17,7 @@ def test_uploaded_photo_reaches_analyzer_using_server_metadata():
             response = request([{**record,'stored_name':'../../secret','content_type':'text/plain'}])
             assert response.status_code == 201
             assert response.json()['visual_analysis']['model'] == 'MER6600FZ'
-            assert analyzer.call_args.args[0] == [record]
+            assert analyzer.call_args.args[0] == [{**record, 'owner_id':'test-user'}]
     finally:
         from app.main import UPLOAD_DIR
         (UPLOAD_DIR / record['stored_name']).unlink()

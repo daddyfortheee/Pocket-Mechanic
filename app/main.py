@@ -7,14 +7,14 @@ import re
 from typing import Any, Literal
 from uuid import uuid4
 
-from fastapi import FastAPI, File, HTTPException, UploadFile
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi import FastAPI, File, HTTPException, UploadFile, Depends, Request
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from app.diagnosis_engine import build_diagnostic_causes, fallback_cause
 from app.project_planner import build_project_plan
 from app.vision_engine import analyze_uploaded_images, VisionUnavailableError
+from app.accounts import router as accounts_router, current_user, check_origin, configured
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 STATIC_DIR = BASE_DIR / "static"
@@ -42,14 +42,24 @@ ALLOWED_VIDEO_TYPES = {
     "video/quicktime",
 }
 
-app = FastAPI(title="Pocket Guru API", version="0.6.0")
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=False,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+app = FastAPI(title="Pocket Guru API", version="0.7.0")
+app.include_router(accounts_router)
+
+
+@app.middleware("http")
+async def protect_requests(request: Request, call_next):
+    if request.url.path.startswith("/api/") and request.method not in ("GET", "HEAD", "OPTIONS"):
+        try:
+            check_origin(request)
+        except HTTPException as error:
+            return JSONResponse({"detail": error.detail}, status_code=error.status_code)
+    response = await call_next(request)
+    if request.url.path.startswith("/api/") or request.url.path == "/health":
+        response.headers["Cache-Control"] = "no-store"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["Referrer-Policy"] = "same-origin"
+    return response
+
 
 Category = Literal["automotive", "motorcycle", "appliance", "home", "equipment", "diy"]
 
@@ -62,11 +72,11 @@ def safe_filename(filename: str | None) -> str:
 
 @app.get("/health")
 def health() -> dict[str, Any]:
-    return {"status": "ok", "version": app.version, "photo_analysis_configured": bool(os.getenv("OPENAI_API_KEY"))}
+    return {"status": "ok", "version": app.version, "photo_analysis_configured": bool(os.getenv("OPENAI_API_KEY")), "accounts_configured": configured()}
 
 
 @app.post("/api/uploads")
-async def upload_media(files: list[UploadFile] = File(...)) -> dict[str, Any]:
+async def upload_media(files: list[UploadFile] = File(...), user: dict = Depends(current_user)) -> dict[str, Any]:
     if not files:
         raise HTTPException(status_code=400, detail="No files were selected.")
 
@@ -140,7 +150,7 @@ async def upload_media(files: list[UploadFile] = File(...)) -> dict[str, Any]:
         )
 
     for record in uploaded:
-        UPLOADED_MEDIA[record["id"]] = record
+        UPLOADED_MEDIA[record["id"]] = {**record, "owner_id": user["id"]}
 
     return {
         "count": len(uploaded),
@@ -188,6 +198,7 @@ class ProfileCreate(BaseModel):
 
 PROFILES: dict[str, dict[str, Any]] = {}
 DIAGNOSES: dict[str, DiagnosisResponse] = {}
+DIAGNOSIS_OWNERS: dict[str, str] = {}
 
 RULES = [
     {
@@ -409,14 +420,15 @@ def diagnose(req: DiagnosisRequest) -> DiagnosisResponse:
 
 
 @app.post("/api/diagnoses", response_model=DiagnosisResponse, status_code=201)
-def create_diagnosis(req: DiagnosisRequest) -> DiagnosisResponse:
+def create_diagnosis(req: DiagnosisRequest, user: dict = Depends(current_user)) -> DiagnosisResponse:
     result = diagnose(req)
     media = req.answers.get("media", [])
     if isinstance(media, list) and media:
         # Resolve server-issued records; never trust client-supplied file paths or MIME types.
         records = [UPLOADED_MEDIA[item.get("id")] for item in media
                    if isinstance(item, dict) and isinstance(item.get("id"), str)
-                   and item.get("id") in UPLOADED_MEDIA]
+                   and item.get("id") in UPLOADED_MEDIA
+                   and UPLOADED_MEDIA[item["id"]].get("owner_id") == user["id"]]
         try:
             result.visual_analysis = analyze_uploaded_images(records, req.category, req.symptom)
             if len(records) != len(media):
@@ -426,38 +438,39 @@ def create_diagnosis(req: DiagnosisRequest) -> DiagnosisResponse:
         except (RuntimeError, ValueError, OSError, TypeError):
             result.visual_analysis = {"available": False, "reason": "Photo analysis could not finish. Try again or upload a clearer photo. Symptom diagnosis still works.", "analyzed_files": []}
     DIAGNOSES[result.id] = result
+    DIAGNOSIS_OWNERS[result.id] = user["id"]
     return result
 
 
 @app.get("/api/diagnoses")
-def list_diagnoses() -> list[DiagnosisResponse]:
-    return list(reversed(list(DIAGNOSES.values())))
+def list_diagnoses(user: dict = Depends(current_user)) -> list[DiagnosisResponse]:
+    return [item for item in reversed(list(DIAGNOSES.values())) if DIAGNOSIS_OWNERS.get(item.id) == user["id"]]
 
 
 @app.get("/api/diagnoses/{diagnosis_id}", response_model=DiagnosisResponse)
-def get_diagnosis(diagnosis_id: str) -> DiagnosisResponse:
+def get_diagnosis(diagnosis_id: str, user: dict = Depends(current_user)) -> DiagnosisResponse:
     result = DIAGNOSES.get(diagnosis_id)
-    if result is None:
+    if result is None or DIAGNOSIS_OWNERS.get(diagnosis_id) != user["id"]:
         raise HTTPException(status_code=404, detail="Diagnosis not found")
     return result
 
 
 @app.post("/api/profiles", status_code=201)
-def create_profile(profile: ProfileCreate) -> dict[str, Any]:
+def create_profile(profile: ProfileCreate, user: dict = Depends(current_user)) -> dict[str, Any]:
     profile_id = str(uuid4())
     data = profile.dict() if hasattr(profile, "dict") else profile.model_dump()
     record = {"id": profile_id, **data, "created_at": datetime.now(timezone.utc).isoformat()}
-    PROFILES[profile_id] = record
+    PROFILES[profile_id] = {**record, "owner_id": user["id"]}
     return record
 
 
 @app.get("/api/profiles")
-def list_profiles() -> list[dict[str, Any]]:
-    return list(PROFILES.values())
+def list_profiles(user: dict = Depends(current_user)) -> list[dict[str, Any]]:
+    return [{key: value for key, value in item.items() if key != "owner_id"} for item in PROFILES.values() if item.get("owner_id") == user["id"]]
 
 
 @app.get("/api/obd/{code}")
-def obd_lookup(code: str) -> dict[str, Any]:
+def obd_lookup(code: str, user: dict = Depends(current_user)) -> dict[str, Any]:
     normalized = code.strip().upper()
     result = OBD_CODES.get(normalized)
     if result is None:

@@ -1,4 +1,4 @@
-const CACHE = 'pocket-mechanic-v11';
+const CACHE = 'pocket-mechanic-v12';
 const ASSETS = ['/', '/static/index.html', '/static/styles.css?v=11', '/static/app.js?v=11', '/static/manifest.json', '/static/guru-icon.svg'];
 self.addEventListener('install', event => event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(ASSETS)).then(() => self.skipWaiting())));
 self.addEventListener('activate', event => event.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(key => key.startsWith('pocket-mechanic-') && key !== CACHE).map(key => caches.delete(key)))).then(() => self.clients.claim())));

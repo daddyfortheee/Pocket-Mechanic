@@ -5,16 +5,45 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#102e31" />
   <link rel="manifest" href="/static/manifest.json" />
-  <link rel="stylesheet" href="/static/styles.css?v=11" />
+  <link rel="stylesheet" href="/static/styles.css?v=12" />
   <title>Pocket Guru</title>
 </head>
 <body>
   <header class="topbar">
     <button class="brand" data-page="home" aria-label="Home"><span class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5L12 3"/></svg></span><span><strong>Pocket Guru</strong><small>Your repair & DIY guide</small></span></button>
     <span id="connection" class="connection">Connecting…</span>
+    <div id="headerAccount" class="header-account" hidden><span id="accountEmail"></span><button id="signOut" type="button" class="text-button">Sign out</button></div>
   </header>
 
+  <section id="authGate" class="auth-shell">
+    <div class="auth-welcome"><p class="eyebrow">YOUR NEXT FIX STARTS HERE</p><h1>A little guidance.<br>A space of your own.</h1><p>Save your vehicles, keep track of your repairs, and plan what’s next.</p></div>
+    <section class="card auth-card">
+      <div id="authTabs" class="auth-tabs"><button id="showSignup" class="active" type="button">Create account</button><button id="showSignin" type="button">Sign in</button></div>
+      <form id="accountForm">
+        <h2 id="accountHeading">Welcome to Pocket Guru</h2>
+        <p id="accountHelp" class="muted">Create your account. We’ll email you a six-digit code to verify it.</p>
+        <label>Email address<input id="accountEmailInput" type="email" autocomplete="email" required maxlength="254" placeholder="you@example.com"></label>
+        <label id="passwordLabel">Password<input id="accountPassword" type="password" autocomplete="new-password" required minlength="8" maxlength="128" placeholder="At least 8 characters"></label>
+        <button id="accountSubmit" class="primary" type="submit">Create account & send code</button>
+        <button id="forgotPassword" class="text-button" type="button" hidden>Forgot your password?</button>
+      </form>
+      <form id="verificationForm" hidden>
+        <p class="eyebrow">CHECK YOUR INBOX</p><h2 id="verificationHeading">Verify your email</h2>
+        <p id="verificationHelp" class="muted"></p>
+        <label>Verification code<input id="verificationCode" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" minlength="6" maxlength="6" required placeholder="000000"></label>
+        <label id="newPasswordLabel" hidden>New password<input id="newPassword" type="password" autocomplete="new-password" minlength="8" maxlength="128" placeholder="At least 8 characters"></label>
+        <button id="verifySubmit" class="primary" type="submit">Verify & continue</button>
+        <div class="auth-code-actions"><button id="resendCode" class="text-button" type="button">Resend code</button><button id="backToAccount" class="text-button" type="button">Use another email</button></div>
+        <p class="auth-note">Codes expire and work only once. Check your spam folder if the email hasn’t arrived.</p>
+      </form>
+      <p id="accountStatus" class="auth-status" role="status" aria-live="polite">Checking account service…</p>
+    </section>
+    <p class="auth-footer">Your garage and history stay separate from other accounts on this device.</p>
+  </section>
+
+  <div id="appContent" hidden>
   <main class="shell">
+    <section id="legacyImport" class="card legacy-import" hidden><h2>Bring your saved work along</h2><p>This device has garage items or history from before accounts. Only import them if they belong to you.</p><button id="importLocalData" type="button" class="primary">Import my saved work</button></section>
     <section id="page-home" class="page active">
       <div class="hero compact">
         <p class="eyebrow">A LITTLE GUIDANCE GOES A LONG WAY</p>
@@ -178,7 +207,8 @@
     <button data-page="history"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11a9 9 0 1 1 2 7 M3 4v7h7 M12 7v6l4 2"/></svg></span>History</button>
   </nav>
 
-  <script src="/static/app.js?v=11"></script>
+  </div>
+  <script src="/static/accounts.js?v=12"></script>
 
 <script>
 /* POCKET_INLINE_PROJECT_UI */

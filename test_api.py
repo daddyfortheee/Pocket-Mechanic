@@ -1,12 +1,12 @@
 from fastapi.testclient import TestClient
 from app.main import app
 
-client = TestClient(app)
+client = TestClient(app, base_url='https://pocket.test', headers={'Origin':'https://pocket.test'})
 
 def test_health():
     response = client.get('/health')
     assert response.status_code == 200
-    assert response.json()['version'] == '0.6.0'
+    assert response.json()['version'] == '0.7.0'
 
 def test_diagnosis():
     response = client.post('/api/diagnoses', json={'category':'automotive','symptom':'speedometer odometer and cruise do not work','answers':{}})

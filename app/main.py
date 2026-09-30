@@ -357,6 +357,7 @@ def diagnose(req: DiagnosisRequest) -> DiagnosisResponse:
             fallback_cause(
                 category=req.category,
                 media_count=media_count,
+                answers=req.answers,
             )
         ]
 

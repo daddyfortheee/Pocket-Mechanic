@@ -24,12 +24,63 @@ function showPage(name){$$('.page').forEach(p=>p.classList.toggle('active',p.id=
 $$('[data-page]').forEach(b=>b.addEventListener('click',()=>showPage(b.dataset.page)));
 $$('[data-diagnose]').forEach(b=>b.addEventListener('click',()=>{$('#category').value=b.dataset.diagnose;$('#category').dispatchEvent(new Event('change'));showPage('diagnose');}));
 
-function renderHistory(){
+let activeWorkId = null;
+function historyItems(){
   const items=read(HISTORY_KEY);
-  const html=items.length?items.map(x=>`<div class="history-item"><strong>${esc(x.category)}</strong><div>${esc(x.symptom)}</div><small class="muted">${esc(x.title)} · ${Math.round(x.confidence*100)}%</small></div>`).join(''):'<p class="muted">No saved diagnoses yet.</p>';
-  $('#homeHistory').innerHTML=html; $('#fullHistory').innerHTML=html;
+  let changed=false;
+  items.forEach(item=>{if(!item.id){item.id=crypto.randomUUID();changed=true;}});
+  if(changed)write(HISTORY_KEY,items);
+  return items;
 }
-$('#clearHistory').addEventListener('click',()=>{write(HISTORY_KEY,[]);renderHistory();});
+function renderHistory(){
+  const items=historyItems();
+  const html=items.length?items.map(x=>`<div class="history-item"><strong>${esc(x.category)}</strong>${x.fixed_at?'<span class="badge work-fixed">Verified fixed by you</span>':''}<div>${esc(x.symptom)}</div><small class="muted">${esc(x.title)} · ${Math.round(x.confidence*100)}%</small><div class="work-actions"><button type="button" data-open-work="${esc(x.id)}" aria-label="Open saved work: ${esc(x.symptom)}">Open work</button><button type="button" data-fixed-work="${esc(x.id)}">${x.fixed_at?'Reopen issue':'Mark fixed'}</button><button type="button" data-delete-work="${esc(x.id)}" aria-label="Delete saved work: ${esc(x.symptom)}">Delete</button></div></div>`).join(''):'<p class="muted">No saved diagnoses yet.</p>';
+  $('#homeHistory').innerHTML=html; $('#fullHistory').innerHTML=html;
+  $$('[data-open-work]').forEach(button=>button.onclick=()=>openSavedWork(button.dataset.openWork));
+  $$('[data-fixed-work]').forEach(button=>button.onclick=()=>toggleWorkFixed(button.dataset.fixedWork));
+  $$('[data-delete-work]').forEach(button=>button.onclick=()=>{
+    write(HISTORY_KEY,historyItems().filter(item=>item.id!==button.dataset.deleteWork));
+    if(activeWorkId===button.dataset.deleteWork){activeWorkId=null;renderWorkControls();}
+    renderHistory();
+  });
+}
+function renderWorkControls(){
+  $('#savedWorkControls')?.remove();
+  const entry=historyItems().find(item=>item.id===activeWorkId);
+  if(!entry)return;
+  const controls=document.createElement('div');controls.id='savedWorkControls';controls.className='work-actions';
+  const status=document.createElement('span');status.textContent=entry.fixed_at?'Verified fixed by you':'Repair in progress';
+  const button=document.createElement('button');button.type='button';button.textContent=entry.fixed_at?'Reopen issue':'Mark fixed';
+  button.onclick=()=>toggleWorkFixed(entry.id);
+  controls.append(status,button);$('#result').append(controls);
+}
+function toggleWorkFixed(id){
+  const items=historyItems();const entry=items.find(item=>item.id===id);if(!entry)return;
+  entry.fixed_at=entry.fixed_at?null:new Date().toISOString();
+  write(HISTORY_KEY,items);renderHistory();renderWorkControls();
+}
+function openSavedWork(id){
+  const entry=historyItems().find(item=>item.id===id);if(!entry)return;
+  $('#category').value=entry.category;$('#category').dispatchEvent(new Event('change'));showPage('diagnose');
+  const item=entry.item;
+  if(item && entry.category!=='diy'){
+    const saved=read(GARAGE_KEY).find(x=>x.id===item.id && x.category===entry.category);
+    $('#profileSelect').value=saved?saved.id:'';
+    for(const [field,key] of [['garageName','name'],['garageYear','year'],['garageMake','make'],['garageModel','model'],['garageEngine','engine'],['garageNotes','notes']]) $('#'+field).value=item[key] || '';
+    garageForm.dispatchEvent(new Event('pocket:item-loaded'));
+  }
+  $('#symptom').value=entry.symptom || '';activeWorkId=entry.id;
+  if(entry.result && Array.isArray(entry.result.causes)){
+    renderResult(entry.result);
+    $('#status').textContent='Saved work reopened. Review your steps or update the description and run it again.';
+  }else{
+    $('#status').textContent='Earlier work reopened. This entry saved only the description; run it again to rebuild the steps.';
+    $('#result').classList.remove('hidden');$('#result').textContent='Previous steps were not saved for this older entry.';
+    renderWorkControls();$('#symptom').focus();
+  }
+  if(entry.media_count)$('#status').textContent+=' Reattach photos or video if you run it again.';
+}
+$('#clearHistory').addEventListener('click',()=>{write(HISTORY_KEY,[]);activeWorkId=null;renderWorkControls();renderHistory();});
 
 function renderGarage(){
   const items=read(GARAGE_KEY); $('#garageCount').textContent=items.length;
@@ -44,6 +95,7 @@ function renderGarage(){
 let addingFromDiagnosis = false;
 let diagnosisRevision = 0;
 function resetDiagnosis(){
+  activeWorkId = null;
   diagnosisRevision += 1;
   $('#symptom').value = '';
   $('#status').textContent = '';
@@ -165,6 +217,7 @@ function renderVisualAnalysis(analysis){
 
 function renderResult(data){
   const r=$('#result');r.classList.remove('hidden');r.innerHTML=`<h2>Your next steps</h2><p>${esc(data.summary)}</p>${renderVisualAnalysis(data.visual_analysis)}<div class="safety">${esc(data.safety_message)}</div>${data.causes.map(c=>`<article class="cause"><h3>${esc(c.title)} <span class="confidence">${Math.round(c.confidence*100)}%</span></h3><p>${esc(c.why)}</p><h4>Checks</h4><ol>${c.checks.map(v=>`<li>${esc(v)}</li>`).join('')}</ol><h4>Repair path</h4><ul>${c.repair.map(v=>`<li>${esc(v)}</li>`).join('')}</ul></article>`).join('')}`;r.scrollIntoView({behavior:'smooth',block:'start'});
+  renderWorkControls();
 }
 
 
@@ -390,21 +443,26 @@ button.disabled = true;
 
     const data = await response.json();
     if(revision !== diagnosisRevision) return;
-    renderResult(data);
 
     const top = data.causes[0];
     const items = read(HISTORY_KEY);
 
     items.unshift({
+      id: data.id,
       category: data.category,
       symptom: data.symptom,
       title: top.title,
       confidence: top.confidence,
       created_at: data.created_at,
-      media_count: uploadedMedia.length
+      media_count: uploadedMedia.length,
+      item: currentItem ? {...currentItem} : null,
+      result: data,
+      fixed_at: null
     });
 
     write(HISTORY_KEY, items.slice(0, 30));
+    activeWorkId=data.id;
+    renderResult(data);
     renderHistory();
 
     $('#status').textContent = uploadedMedia.length
@@ -544,4 +602,3 @@ renderHistory();renderGarage();connection();
     initializeProjectInterface();
   }
 })();
-

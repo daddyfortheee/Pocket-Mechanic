@@ -1,0 +1,66 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const { JSDOM } = require('jsdom');
+const HISTORY = 'pocket-mechanic-history-v4';
+const GARAGE = 'pocket-mechanic-garage-v4';
+const item = { id: 'vehicle-1', category: 'automotive', name: 'My truck', year: '2015', make: 'Chevrolet', model: 'Silverado', engine: '6.2L', notes: 'Old garage notes' };
+const result = { id: 'work-1', category: 'automotive', symptom: 'Only clicks. Battery voltage is 6.2v.', created_at: '2026-09-30T19:00:00Z', summary: 'Charge and test the battery.', safety_message: 'Check safely.', causes: [{title: 'Battery power too low', confidence: .96, why: 'Measured low voltage.', checks:['Charge and test'], repair:['Replace if it fails testing'], safety:'high'}] };
+async function boot(entries) {
+  const dom = new JSDOM(fs.readFileSync('static/index.html', 'utf8'), { url: 'https://pocket.test/', runScripts: 'outside-only' });
+  const w = dom.window;
+  w.scrollTo = () => {};
+  w.HTMLElement.prototype.scrollIntoView = () => {};
+  w.URL.revokeObjectURL = () => {};
+  w.localStorage.setItem(HISTORY, JSON.stringify(entries));
+  w.localStorage.setItem(GARAGE, JSON.stringify([item]));
+  let diagnosisCalls = 0;
+  w.fetch = async (url, options) => {
+    if(url === '/api/diagnoses') { diagnosisCalls++; return {ok: true, json: async () => ({...result, category:JSON.parse(options.body).category, symptom:JSON.parse(options.body).symptom})}; }
+    return {ok: true, json: async () => url === '/health' ? {version:'0.6.1'} : {options:[]}};
+  };
+  w.eval(fs.readFileSync('static/app.js','utf8'));
+  w.eval(fs.readFileSync('static/vehicle-picker.js','utf8'));
+  await new Promise(r => setTimeout(r, 10));
+  return {dom, w, q: s => w.document.querySelector(s), read: () => JSON.parse(w.localStorage.getItem(HISTORY)), calls: () => diagnosisCalls};
+}
+(async () => {
+  const entry = {...result, title:result.causes[0].title, confidence:.96, item, result, media_count:1};
+  let b = await boot([entry, {category:'diy', symptom:'Build a shelf', title:'Shelf plan', confidence:.8}]);
+  assert.equal(b.q('#homeHistory [data-open-work]').textContent, 'Open work');
+  b.q('#homeHistory [data-open-work]').click();
+  assert(b.q('#page-diagnose').classList.contains('active'));
+  assert.equal(b.q('#symptom').value, result.symptom);
+  assert.equal(b.q('#garageModel').value, 'Silverado');
+  assert.equal(b.q('#garageEnginePicker').value, '6.2L');
+  assert(b.q('#result').textContent.includes('Replace if it fails testing'));
+  assert(b.q('#status').textContent.includes('Reattach'));
+  assert.equal(b.calls(), 0, 'Opening saved work must not regenerate it');
+  b.q('#savedWorkControls button').click();
+  assert(b.read()[0].fixed_at);
+  assert(b.q('#homeHistory').textContent.includes('Verified fixed by you'));
+  assert(b.q('#fullHistory').textContent.includes('Verified fixed by you'));
+  const persisted = b.read(); b.dom.window.close();
+  b = await boot(persisted);
+  b.q('#fullHistory [data-open-work]').click();
+  assert.equal(b.q('#savedWorkControls button').textContent,'Reopen issue');
+  b.q('#savedWorkControls button').click();
+  assert.equal(b.read()[0].fixed_at,null);
+  b.q('#homeHistory [data-delete-work]').click();
+  assert.equal(b.read().length,1);
+  assert.equal(JSON.parse(b.w.localStorage.getItem(GARAGE)).length,1,'Deleting history must retain garage item');
+  b.q('#fullHistory [data-open-work]').click();
+  assert.equal(b.q('#category').value,'diy');
+  assert.equal(b.q('#symptom').value,'Build a shelf');
+  assert(b.q('#status').textContent.includes('only the description'));
+  b.q('#diagnosisForm').dispatchEvent(new b.w.Event('submit',{bubbles:true,cancelable:true}));
+  await new Promise(r=>setTimeout(r,10));
+  assert.equal(b.calls(),1);
+  assert(b.read()[0].result, 'New work must save all steps');
+  assert.equal(b.read()[0].category,'diy');
+  assert.equal(b.read()[0].fixed_at,null);
+  b.q('#clearHistory').click();
+  assert.equal(b.read().length,0);
+  assert.equal(b.q('#savedWorkControls'),null);
+  b.dom.window.close();
+  console.log('Recent work: reopen, restore context, retain steps, legacy entries, delete, fixed/reopen, persistence, and new saves passed.');
+})().catch(error=>{console.error(error);process.exit(1)});

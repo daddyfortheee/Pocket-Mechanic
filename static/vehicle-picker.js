@@ -21,7 +21,7 @@
   const help = document.createElement('p');
   help.className = 'muted wide';
   help.setAttribute('role', 'status');
-  form.appendChild(help);
+  document.getElementById('itemFields').appendChild(help);
   const automotive = () => category.value === 'automotive';
   function setOptions(i, values = [], message = 'Choose ' + names[i], failed = false) {
     selects[i].replaceChildren(new Option(message, ''),
@@ -99,6 +99,19 @@
     if (automotive()) load(0);
   }
   category.addEventListener('change', configure);
+  form.addEventListener('pocket:item-reset', configure);
+  form.addEventListener('pocket:item-loaded', () => {
+    clearTimeout(timer);
+    for(let i=0;i<3;i++){
+      generations[i]++;
+      const value=inputs[i].value;
+      setOptions(i,value?[value]:[]);
+      selects[i].value=value;
+      selects[i].hidden=!automotive();
+      inputs[i].hidden=automotive();
+    }
+    help.hidden=!automotive();
+  });
   // reset fires before reset values are applied and category is restored by app.js.
   form.addEventListener('reset', () => {
     clearFrom(0);

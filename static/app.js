@@ -19,7 +19,7 @@ const GARAGE_KEY = 'pocket-mechanic-garage-v4';
 function esc(v){return String(v ?? '').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));}
 function read(key){try{return JSON.parse(localStorage.getItem(key)||'[]')}catch{return[]}}
 function write(key,value){localStorage.setItem(key,JSON.stringify(value));}
-function showPage(name){$$('.page').forEach(p=>p.classList.toggle('active',p.id===`page-${name}`));$$('.bottom-nav button').forEach(b=>b.classList.toggle('active',b.dataset.page===name));window.scrollTo({top:0,behavior:'smooth'});}
+function showPage(name){$$('.page').forEach(p=>p.classList.toggle('active',p.id===`page-${name}`));$$('.bottom-nav button').forEach(b=>b.classList.toggle('active',b.dataset.page===name));window.scrollTo({top:0,behavior:'smooth'});if(name==='diagnose')openItemEditor();else closeItemEditor();}
 
 $$('[data-page]').forEach(b=>b.addEventListener('click',()=>showPage(b.dataset.page)));
 $$('[data-diagnose]').forEach(b=>b.addEventListener('click',()=>{$('#category').value=b.dataset.diagnose;$('#category').dispatchEvent(new Event('change'));showPage('diagnose');}));
@@ -38,7 +38,7 @@ function renderGarage(){
   $('#profileSelect').innerHTML='<option value="">Choose an item (optional)</option>'+items.map(x=>`<option value="${esc(x.id)}">${esc(x.name)}</option>`).join('');
   syncDiagnosisItems(); $('#profileSelect').value=selectedId;
   $$('[data-delete]').forEach(b=>b.onclick=()=>{write(GARAGE_KEY,items.filter(x=>x.id!==b.dataset.delete));renderGarage();});
-  $$('[data-use]').forEach(b=>b.onclick=()=>{const x=items.find(i=>i.id===b.dataset.use);if(x){$('#category').value=x.category;syncDiagnosisItems();$('#profileSelect').value=x.id;$('#category').dispatchEvent(new Event('change'));$('#profileSelect').value=x.id;showPage('diagnose');}});
+  $$('[data-use]').forEach(b=>b.onclick=()=>{const x=items.find(i=>i.id===b.dataset.use);if(x){$('#category').value=x.category;syncDiagnosisItems();$('#profileSelect').value=x.id;$('#category').dispatchEvent(new Event('change'));$('#profileSelect').value=x.id;loadSelectedItem();showPage('diagnose');}});
 }
 
 let addingFromDiagnosis = false;
@@ -57,7 +57,7 @@ function resetDiagnosis(){
 }
 
 const garageForm = $('#garageForm');
-const garageFormHome = garageForm.parentElement;
+const itemFields = $('#itemFields');
 function updateItemFields(){
   const type = $('#garageCategory').value;
   const vehicle = ['automotive','motorcycle'].includes(type);
@@ -66,59 +66,92 @@ function updateItemFields(){
   const fields = [
     ['garageMake', vehicle ? 'Make' : 'Brand', vehicle ? 'Make (optional)' : 'Brand (optional)'],
     ['garageModel', 'Model', vehicle ? 'Model (optional)' : 'Model number (optional)'],
-    ['garageEngine', vehicle ? 'Engine' : type === 'appliance' ? 'Appliance type / details' : 'System / equipment type', vehicle ? 'Engine (optional)' : 'Type / details (optional)']
+    ['garageEngine', vehicle ? 'Engine / transmission' : type === 'appliance' ? 'Appliance type / details' : 'System / equipment type', vehicle ? 'Engine (optional)' : 'Type / details (optional)']
   ];
   fields.forEach(([id,label,placeholder])=>{
     const input = $('#'+id);
     input.parentElement.firstChild.textContent = label;
     input.placeholder = placeholder;
   });
-  $('#garageName').placeholder = vehicle ? 'Vehicle name' : 'Item name';
+  $('#garageName').placeholder = vehicle ? 'Vehicle name (optional)' : 'Item name (optional)';
+}
+function resetItemEditor(){
+  ['garageName','garageYear','garageMake','garageModel','garageEngine','garageNotes'].forEach(id=>$('#'+id).value='');
+  $('#saveDiagnosisItem').checked = false;
+  garageForm.dispatchEvent(new Event('pocket:item-reset'));
 }
 function syncDiagnosisItems(){
   const category = $('#category').value;
   const previous = $('#profileSelect').value;
-  $('#profileSelect').innerHTML = '<option value="">Choose an item (optional)</option>' + read(GARAGE_KEY).filter(x=>x.category===category).map(x=>`<option value="${esc(x.id)}">${esc(x.name)}</option>`).join('');
+  $('#profileSelect').innerHTML = '<option value="">Enter a new item below</option>' + read(GARAGE_KEY).filter(x=>x.category===category).map(x=>`<option value="${esc(x.id)}">${esc(x.name)}</option>`).join('');
   $('#profileSelect').value = previous;
-  $('#addDiagnosisItem').textContent = ['automotive','motorcycle'].includes(category) ? 'Add vehicle' : category==='appliance' ? 'Add appliance' : 'Add item';
+  $('#addDiagnosisItem').textContent = ['automotive','motorcycle'].includes(category) ? 'Start a new vehicle' : 'Start a new item';
   $('#addDiagnosisItem').hidden = category==='diy';
+  $('#profileSelect').parentElement.hidden = category==='diy';
+  $('#saveDiagnosisItemLabel').hidden = category==='diy';
 }
 function closeItemEditor(){
-  garageFormHome.appendChild(garageForm);
+  if(addingFromDiagnosis) $('#garageNotes').value = $('#symptom').value;
+  garageForm.appendChild(itemFields);
   $('#diagnosisItemEditor').hidden = true;
+  $('#garageCategory').parentElement.hidden = false;
+  $('#garageNotes').parentElement.hidden = false;
+  $('#garageName').required = true;
   addingFromDiagnosis = false;
 }
-$('#addDiagnosisItem').addEventListener('click',()=>{
-  resetDiagnosis();
-  $('#profileSelect').value = '';
-  garageForm.reset();
+function openItemEditor(){
+  if($('#category').value==='diy'){closeItemEditor();return;}
   $('#garageCategory').value = $('#category').value;
   updateItemFields();
-  addingFromDiagnosis = true;
-  $('#diagnosisItemEditor').appendChild(garageForm);
+  $('#diagnosisItemEditor').appendChild(itemFields);
   $('#diagnosisItemEditor').hidden = false;
-  $('#diagnosisItemEditor').scrollIntoView({behavior:'smooth',block:'start'});
-  $('#garageName').focus({preventScroll:true});
+  $('#garageCategory').parentElement.hidden = true;
+  $('#garageNotes').parentElement.hidden = true;
+  $('#garageName').required = false;
+  addingFromDiagnosis = true;
+}
+function loadSelectedItem(){
+  const item = read(GARAGE_KEY).find(x=>x.id===$('#profileSelect').value);
+  resetItemEditor();
+  if(item){
+    for(const [id,key] of [['garageName','name'],['garageYear','year'],['garageMake','make'],['garageModel','model'],['garageEngine','engine'],['garageNotes','notes']]) $('#'+id).value = item[key] || '';
+    $('#garageCategory').value = item.category;
+    $('#symptom').value = item.notes || '';
+    garageForm.dispatchEvent(new Event('pocket:item-loaded'));
+  }
+  openItemEditor();
+}
+function diagnosisItem(){
+  if($('#category').value==='diy') return null;
+  const item = {category:$('#category').value,year:$('#garageYear').disabled?'':$('#garageYear').value,make:$('#garageMake').value.trim(),model:$('#garageModel').value.trim(),engine:$('#garageEngine').value.trim(),notes:$('#symptom').value.trim()};
+  item.name = $('#garageName').value.trim() || [item.year,item.make,item.model].filter(Boolean).join(' ') || 'My ' + item.category + ' item';
+  const saved = $('#profileSelect').value;
+  if(saved) item.id = saved;
+  return item;
+}
+function saveItem(item){
+  const items=read(GARAGE_KEY);
+  item.id = item.id || (crypto.randomUUID?crypto.randomUUID():String(Date.now()));
+  const existing=items.findIndex(x=>x.id===item.id);
+  if(existing>=0) items[existing]=item;else items.unshift(item);
+  try{write(GARAGE_KEY,items);}catch{alert('Could not save this item. Your browser storage may be full.');return null;}
+  renderGarage();
+  return item;
+}
+$('#addDiagnosisItem').addEventListener('click',()=>{
+  resetDiagnosis();$('#profileSelect').value='';resetItemEditor();openItemEditor();
 });
 $('#garageCategory').addEventListener('change',updateItemFields);
-$('#category').addEventListener('change',()=>{resetDiagnosis();closeItemEditor();syncDiagnosisItems();});
-$('#profileSelect').addEventListener('change',resetDiagnosis);
-$$('[data-page]').forEach(b=>b.addEventListener('click',closeItemEditor));
-$$('[data-diagnose]').forEach(b=>b.addEventListener('click',()=>{closeItemEditor();syncDiagnosisItems();}));
-const cancelItem = document.createElement('button');
-cancelItem.type='button';cancelItem.textContent='Cancel';
-cancelItem.addEventListener('click',closeItemEditor);$('#itemEditorActions').appendChild(cancelItem);
+$('#category').addEventListener('change',()=>{
+  resetDiagnosis();$('#garageCategory').value=$('#category').value;resetItemEditor();syncDiagnosisItems();
+  if($('#page-diagnose').classList.contains('active'))openItemEditor();
+});
+$('#profileSelect').addEventListener('change',()=>{resetDiagnosis();loadSelectedItem();});
 garageForm.addEventListener('submit',e=>{
   e.preventDefault();
-  e.stopPropagation();
-  const items=read(GARAGE_KEY);
-  const item={id:crypto.randomUUID?crypto.randomUUID():String(Date.now()),name:$('#garageName').value.trim(),category:$('#garageCategory').value,year:$('#garageYear').disabled?'':$('#garageYear').value,make:$('#garageMake').value.trim(),model:$('#garageModel').value.trim(),engine:$('#garageEngine').value.trim(),notes:$('#garageNotes').value.trim()};
+  const item={name:$('#garageName').value.trim(),category:$('#garageCategory').value,year:$('#garageYear').disabled?'':$('#garageYear').value,make:$('#garageMake').value.trim(),model:$('#garageModel').value.trim(),engine:$('#garageEngine').value.trim(),notes:$('#garageNotes').value.trim()};
   if(!item.name){$('#garageName').focus();return;}
-  items.unshift(item);
-  try{write(GARAGE_KEY,items);}catch{alert('Could not save this item. Your browser storage may be full.');return;}
-  const returnToDiagnosis = addingFromDiagnosis;
-  closeItemEditor();garageForm.reset();updateItemFields();renderGarage();
-  if(returnToDiagnosis){resetDiagnosis();$('#category').value=item.category;syncDiagnosisItems();$('#profileSelect').value=item.id;$('#status').textContent = `${item.name} saved to My Garage. Start a new diagnosis below.`;$('#diagnosisForm').scrollIntoView({behavior:'smooth',block:'start'});}
+  if(saveItem(item)){resetItemEditor();updateItemFields();}
 });
 updateItemFields();
 syncDiagnosisItems();
@@ -302,6 +335,15 @@ $('#videoInput').addEventListener('change', event => {
 $('#diagnosisForm').addEventListener('submit', async event => {
   event.preventDefault();
 
+  let currentItem = diagnosisItem();
+  if(currentItem && $('#saveDiagnosisItem').checked){
+    currentItem=saveItem(currentItem);
+    if(!currentItem)return;
+    $('#profileSelect').value=currentItem.id;
+    $('#saveDiagnosisItem').checked=false;
+  }
+  const currentSymptom=$('#symptom').value;
+  const currentCategory=$('#category').value;
   const revision = diagnosisRevision;
   const button = $('#diagnoseButton');
   
@@ -320,13 +362,13 @@ button.disabled = true;
     $('#status').textContent = uploadedMedia.length ? 'Inspecting photos and analyzing symptoms…' : 'Analyzing symptoms…';
 
     const payload = {
-      category: $('#category').value,
-      symptom: $('#symptom').value,
+      category: currentCategory,
+      symptom: currentSymptom,
       answers: {
         media: uploadedMedia,
-        item: read(GARAGE_KEY).find(x=>x.id === $('#profileSelect').value) || null
+        item: currentItem
       },
-      profile_id: $('#profileSelect').value || null
+      profile_id: currentItem?.id || null
     };
 
     const response = await fetch('/api/diagnoses', {
@@ -502,3 +544,4 @@ renderHistory();renderGarage();connection();
     initializeProjectInterface();
   }
 })();
+

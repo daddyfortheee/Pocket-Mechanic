@@ -13,15 +13,15 @@ async function boot(entries) {
   w.URL.revokeObjectURL = () => {};
   w.localStorage.setItem(HISTORY, JSON.stringify(entries));
   w.localStorage.setItem(GARAGE, JSON.stringify([item]));
-  let diagnosisCalls = 0;
+  let diagnosisCalls = 0; let lastPayload = null;
   w.fetch = async (url, options) => {
-    if(url === '/api/diagnoses') { diagnosisCalls++; return {ok: true, json: async () => ({...result, category:JSON.parse(options.body).category, symptom:JSON.parse(options.body).symptom})}; }
+    if(url === '/api/diagnoses') { diagnosisCalls++; lastPayload = JSON.parse(options.body); return {ok: true, json: async () => ({...result, category:JSON.parse(options.body).category, symptom:JSON.parse(options.body).symptom})}; }
     return {ok: true, json: async () => url === '/health' ? {version:'0.6.1'} : {options:[]}};
   };
   w.eval(fs.readFileSync('static/app.js','utf8'));
   w.eval(fs.readFileSync('static/vehicle-picker.js','utf8'));
   await new Promise(r => setTimeout(r, 10));
-  return {dom, w, q: s => w.document.querySelector(s), read: () => JSON.parse(w.localStorage.getItem(HISTORY)), calls: () => diagnosisCalls};
+  return {dom, w, q: s => w.document.querySelector(s), read: () => JSON.parse(w.localStorage.getItem(HISTORY)), calls: () => diagnosisCalls, payload: () => lastPayload};
 }
 (async () => {
   const entry = {...result, title:result.causes[0].title, confidence:.96, item, result, media_count:1};
@@ -35,6 +35,18 @@ async function boot(entries) {
   assert(b.q('#result').textContent.includes('Replace if it fails testing'));
   assert(b.q('#status').textContent.includes('Reattach'));
   assert.equal(b.calls(), 0, 'Opening saved work must not regenerate it');
+  b.q('#newFinding').value = 'Battery passed a load test after charging, but it still only clicks.';
+  b.q('#continueDiagnosis').click();
+  await new Promise(r=>setTimeout(r,10));
+  assert.equal(b.calls(),1);
+  assert.equal(b.payload().symptom,result.symptom);
+  assert.equal(b.payload().answers.findings[0],'Battery passed a load test after charging, but it still only clicks.');
+  assert.equal(b.read().length,2,'Continue must update the existing work, not duplicate it');
+  assert.equal(b.read()[0].id,entry.id);
+  assert.equal(b.read()[0].findings.length,1);
+  assert.equal(b.read()[0].previous_results.length,1);
+  assert(b.q('#findingHistory').textContent.includes('Battery passed'));
+
   b.q('#savedWorkControls button').click();
   assert(b.read()[0].fixed_at);
   assert(b.q('#homeHistory').textContent.includes('Verified fixed by you'));

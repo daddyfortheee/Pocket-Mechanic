@@ -57,3 +57,33 @@ def test_crank_no_start_keeps_fuel_spark_path():
 def test_unrelated_clicking_does_not_become_starter_fault():
     result = diagnose('The turn signal makes a clicking sound while driving.')
     assert all('No-crank' not in c['title'] for c in result['causes'])
+
+
+def test_passed_battery_finding_moves_to_next_checks_despite_original_low_voltage():
+    result = diagnose('Only clicks when starting. Battery voltage is 6.2v.', {
+        'findings': ['Battery passed a load test after charging, but it still only clicks.'],
+    })
+    assert result['causes'][0]['title'].startswith('Battery tested good')
+    assert any('voltage drop' in check for check in result['causes'][0]['checks'])
+    assert all('Battery power too low' not in cause['title'] for cause in result['causes'])
+
+
+def test_later_failed_test_overrides_earlier_passed_test():
+    result = diagnose('Only clicks when starting. Battery voltage is 6.2v.', {
+        'findings': ['Battery tested good.', 'Battery failed the load test on recheck.'],
+    })
+    assert result['causes'][0]['title'].startswith('Battery power too low')
+
+
+def test_latest_cranking_symptom_moves_off_no_crank_path():
+    result = diagnose('Only clicks when starting. Battery voltage is 6.2v.', {
+        'findings': ['Battery passed a load test after charging.', 'It now cranks but will not start.'],
+    })
+    assert result['causes'][0]['title'] == 'Crank-no-start condition'
+
+
+def test_unproven_battery_condition_is_not_treated_as_passed_test():
+    result = diagnose('Only clicks when starting. Battery voltage is 6.2v.', {
+        'findings': ["Battery didn't pass the test."],
+    })
+    assert result['causes'][0]['title'].startswith('Battery power too low')

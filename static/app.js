@@ -53,6 +53,24 @@ function renderWorkControls(){
   const button=document.createElement('button');button.type='button';button.textContent=entry.fixed_at?'Reopen issue':'Mark fixed';
   button.onclick=()=>toggleWorkFixed(entry.id);
   controls.append(status,button);$('#result').append(controls);
+  const section=document.createElement('section');section.className='cause';section.id='workFindings';
+  section.innerHTML='<h3>Add findings</h3><p>Tell us what you tested, the readings, and what is still happening.</p><label for="newFinding">What did you find?</label><textarea id="newFinding" maxlength="1000" placeholder="Battery passed a load test after charging, but it still only clicks."></textarea><div class="work-actions"><button type="button" id="continueDiagnosis">Continue diagnosis</button></div><p id="findingStatus" role="status"></p><div id="findingHistory"></div>';
+  const notes=entry.findings || [];
+  section.querySelector('#findingHistory').innerHTML=notes.length?'<h4>Your findings</h4><ol>'+notes.map(note=>'<li>'+esc(note.text)+'</li>').join('')+'</ol>':'';
+  section.querySelector('#continueDiagnosis').onclick=()=>{
+    if($('#diagnoseButton').disabled)return;
+    const text=section.querySelector('#newFinding').value.trim();
+    if(!text){section.querySelector('#findingStatus').textContent='Enter what you tested or found first.';return;}
+    entry.findings=[...notes,{text,created_at:new Date().toISOString()}].slice(-20);
+    entry.fixed_at=null;
+    const items=historyItems();const index=items.findIndex(item=>item.id===entry.id);if(index<0)return;
+    items[index]=entry;
+    try{write(HISTORY_KEY,items);}catch{section.querySelector('#findingStatus').textContent='Could not save the finding. Your browser storage may be full.';return;}
+    renderHistory();
+    // Reuse the existing form and item context; append evidence without replacing the original complaint.
+    $('#diagnosisForm').requestSubmit();
+  };
+  $('#result').append(section);
 }
 function toggleWorkFixed(id){
   const items=historyItems();const entry=items.find(item=>item.id===id);if(!entry)return;
@@ -398,6 +416,7 @@ $('#diagnosisForm').addEventListener('submit', async event => {
   const currentSymptom=$('#symptom').value;
   const currentCategory=$('#category').value;
   const revision = diagnosisRevision;
+  const continuedWork=historyItems().find(item=>item.id===activeWorkId);
   const button = $('#diagnoseButton');
   
   const projectMode = isProjectMode();
@@ -419,7 +438,8 @@ button.disabled = true;
       symptom: currentSymptom,
       answers: {
         media: uploadedMedia,
-        item: currentItem
+        item: currentItem,
+        findings: (continuedWork?.findings || []).map(note=>note.text)
       },
       profile_id: currentItem?.id || null
     };
@@ -447,8 +467,9 @@ button.disabled = true;
     const top = data.causes[0];
     const items = read(HISTORY_KEY);
 
-    items.unshift({
-      id: data.id,
+    const previous=continuedWork ? items.find(item=>item.id===continuedWork.id) : null;
+    const savedWork={
+      id: previous?.id || data.id,
       category: data.category,
       symptom: data.symptom,
       title: top.title,
@@ -457,11 +478,15 @@ button.disabled = true;
       media_count: uploadedMedia.length,
       item: currentItem ? {...currentItem} : null,
       result: data,
-      fixed_at: null
-    });
+      fixed_at: null,
+      findings: previous?.findings || [],
+      previous_results: [...(previous?.previous_results || []),...(previous?.result?[previous.result]:[])].slice(-10)
+    };
+    if(previous)items.splice(items.findIndex(item=>item.id===previous.id),1);
+    items.unshift(savedWork);
 
     write(HISTORY_KEY, items.slice(0, 30));
-    activeWorkId=data.id;
+    activeWorkId=savedWork.id;
     renderResult(data);
     renderHistory();
 

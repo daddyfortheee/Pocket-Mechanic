@@ -60,15 +60,42 @@ def build_diagnostic_causes(
             causes.append(cause)
 
     if category == "automotive":
-        no_crank = contains(text, "no crank", "no-crank", "doesn't crank", "does not crank",
+        findings = answers.get("findings", [])
+        evidence = [symptom] + ([note for note in findings if isinstance(note, str)] if isinstance(findings, list) else [])
+        battery_passed = False
+        for note in evidence:
+            normalized = note.lower().replace("’", "'")
+            if re.search(r"\bbattery\b.{0,40}\b(?:passed (?:a |the )?(?:load |conductance )?test|tested (?:good|ok|okay)|load[ -]tested good)\b", normalized):
+                battery_passed = True
+            if re.search(r"\bbattery\b.{0,40}\b(?:failed (?:a |the )?(?:load |conductance )?test|tested bad|did(?:n't| not) pass)\b", normalized):
+                battery_passed = False
+        starting_text = text
+        for note in evidence[1:]:
+            normalized = note.lower().replace("’", "'")
+            if contains(normalized, "cranks but", "turns over but", "crank no start"):
+                starting_text = normalized
+        no_crank = contains(starting_text, "no crank", "no-crank", "doesn't crank", "does not crank",
                             "won't crank", "wont crank", "doesn't turn over", "does not turn over",
                             "won't turn over", "not turning over", "engine doesn't turn", "engine does not turn")
-        starting_click = contains(text, "click", "clicking") and contains(
-            text, "start", "key", "crank", "turn over", "turns over")
+        starting_click = contains(starting_text, "click", "clicking") and contains(
+            starting_text, "start", "key", "crank", "turn over", "turns over")
         volts = battery_voltage(text, answers)
         # A stated six-volt system needs its own specifications, not a 12 V threshold.
         six_volt_system = bool(re.search(r"\b6\s*(?:v|volt)[ -]*(?:battery|system)\b", text))
-        if (no_crank or starting_click) and volts is not None and volts < 12.2 and not six_volt_system:
+        if (no_crank or starting_click) and battery_passed:
+            add(make_cause(
+                "Battery tested good — check cables and the starter circuit next",
+                0.89,
+                "You report that the battery passed testing, but the original complaint is clicking or no crank. Continue with power delivery and starter-circuit tests rather than replacing a battery that passed. An earlier low-voltage reading may have been before charging; confirm current voltage under load.",
+                ["Confirm the battery was fully charged and passed a load or conductance test; resting voltage alone does not prove starting capacity.",
+                 "Inspect and tighten battery terminals, engine grounds, and starter connections. Measure positive-cable and ground-path voltage drop during a start attempt against the vehicle specifications.",
+                 "If cable tests pass, check starter relay operation and starter-solenoid control voltage during a start attempt using the correct wiring diagram.",
+                 "If the starter receives correct power, ground, and start command but will not crank, test the starter and check for mechanical resistance before replacing parts."],
+                ["Repair the cable, ground, relay, or control-circuit fault demonstrated by testing.",
+                 "Replace the starter only if testing confirms it has failed; a passed battery test does not by itself prove starter failure."],
+                "high",
+            ))
+        elif (no_crank or starting_click) and volts is not None and volts < 12.2 and not six_volt_system:
             add(make_cause(
                 "Battery power too low — charge and test the battery",
                 0.96,

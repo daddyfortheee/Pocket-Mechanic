@@ -1,4 +1,25 @@
+import re
 from typing import Any
+
+
+def battery_voltage(text: str, answers: dict[str, Any]) -> float | None:
+    """Read measured battery volts, not engine size, model year, or nominal rating."""
+    for key in ("battery_voltage", "batteryVoltage"):
+        value = answers.get(key)
+        if isinstance(value, (str, int, float)) and not isinstance(value, bool):
+            match = re.fullmatch(r"\s*(\d{1,2}(?:\.\d+)?)\s*(?:v|volts?)?\s*", str(value).lower())
+            if match:
+                return float(match.group(1))
+    patterns = (
+        r"\bbattery\s+(?:voltage\s+)?(?:is\s+|was\s+|reads?\s+|reading\s+|measures?\s+|measured\s+|at\s+|of\s+|=\s*|:\s*)?(\d{1,2}(?:\.\d+)?)\s*(?:v\b|volts?\b)",
+        r"\b(?:battery\s+)?voltage\s*(?:reading\s*)?(?:is\s+|was\s+|reads?\s+|at\s+|of\s+|=\s*|:\s*)?(\d{1,2}(?:\.\d+)?)\s*(?:v\b|volts?\b)",
+        r"\b(\d{1,2}(?:\.\d+)?)\s*(?:v\b|volts?\b)\s*(?:at|across|on)\s+(?:the\s+)?battery\b",
+    )
+    for pattern in patterns:
+        match = re.search(pattern, text)
+        if match:
+            return float(match.group(1))
+    return None
 
 
 def make_cause(
@@ -30,7 +51,7 @@ def build_diagnostic_causes(
 ) -> list[dict[str, Any]]:
     answers = answers or {}
     answer_text = " ".join(str(value) for value in answers.values())
-    text = f"{symptom} {answer_text}".lower()
+    text = f"{symptom} {answer_text}".lower().replace("’", "'").replace("‘", "'")
 
     causes: list[dict[str, Any]] = []
 
@@ -39,7 +60,47 @@ def build_diagnostic_causes(
             causes.append(cause)
 
     if category == "automotive":
-        if contains(
+        no_crank = contains(text, "no crank", "no-crank", "doesn't crank", "does not crank",
+                            "won't crank", "wont crank", "doesn't turn over", "does not turn over",
+                            "won't turn over", "not turning over", "engine doesn't turn", "engine does not turn")
+        starting_click = contains(text, "click", "clicking") and contains(
+            text, "start", "key", "crank", "turn over", "turns over")
+        volts = battery_voltage(text, answers)
+        # A stated six-volt system needs its own specifications, not a 12 V threshold.
+        six_volt_system = bool(re.search(r"\b6\s*(?:v|volt)[ -]*(?:battery|system)\b", text))
+        if (no_crank or starting_click) and volts is not None and volts < 12.2 and not six_volt_system:
+            add(make_cause(
+                "Battery power too low — charge and test the battery",
+                0.96,
+                f"The reported {volts:g} V is too low for a normal 12 V starting system. "
+                "Clicking without the engine turning over is consistent with insufficient starting power. "
+                "A low reading alone does not prove that the battery needs replacement; confirm the reading at the battery posts and test after charging.",
+                [
+                    "Stop repeated start attempts. Confirm the meter is on DC volts and recheck directly across the battery posts with the engine off.",
+                    "Inspect battery terminals and grounds for loose or corroded connections.",
+                    "If the battery is not damaged or frozen, fully charge it with the correct charger, then have it load-tested or conductance-tested.",
+                    "If the reading was taken during a start attempt, compare the resting reading and perform a battery load test; a severe drop can also involve cable resistance or excessive starter current.",
+                ],
+                [
+                    "Charge the battery first; replace it if it cannot accept or hold a charge, or fails the battery test.",
+                    "Clean and tighten poor terminal or ground connections, then retry starting after the battery passes testing.",
+                    "After starting, check the charging system and investigate a repeated discharge. If it still only clicks with a tested battery, test cables and the starter circuit.",
+                ],
+                "high",
+            ))
+        elif no_crank or starting_click:
+            add(make_cause(
+                "No-crank starting fault — test battery and cable power first",
+                0.89,
+                "The engine is not turning over or the starter is clicking. This points to the battery, connections, starter power/control circuit, or mechanical resistance rather than fuel or spark first.",
+                ["Measure battery voltage at the posts before and during a start attempt; charge and test a discharged battery.",
+                 "Inspect terminals and grounds, then test cable voltage drop under load.",
+                 "If battery and cables pass, test starter relay/control voltage and starter operation using the vehicle's wiring diagram."],
+                ["Charge a discharged battery and replace it only if it fails testing.",
+                 "Repair the connection or starting-circuit fault confirmed by testing."],
+                "high",
+            ))
+        elif contains(
             text,
             "cranks but",
             "turns over but",

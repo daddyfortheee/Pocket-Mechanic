@@ -42,6 +42,20 @@ function renderGarage(){
 }
 
 let addingFromDiagnosis = false;
+let diagnosisRevision = 0;
+function resetDiagnosis(){
+  diagnosisRevision += 1;
+  $('#symptom').value = '';
+  $('#status').textContent = '';
+  $('#result').innerHTML = '';
+  $('#result').classList.add('hidden');
+  selectedMedia.forEach(item => URL.revokeObjectURL(item.url));
+  selectedMedia.length = 0;
+  renderMediaPreview();
+  setMediaError();
+  $('#diagnoseButton').disabled = false;
+}
+
 const garageForm = $('#garageForm');
 const garageFormHome = garageForm.parentElement;
 function updateItemFields(){
@@ -50,16 +64,16 @@ function updateItemFields(){
   $('#garageYear').parentElement.hidden = !vehicle;
   $('#garageYear').disabled = !vehicle;
   const fields = [
-    ['garageMake', vehicle ? 'Make' : 'Brand', vehicle ? 'Chevrolet' : 'GE'],
-    ['garageModel', 'Model', vehicle ? 'Silverado' : 'Model number'],
-    ['garageEngine', vehicle ? 'Engine' : type === 'appliance' ? 'Appliance type / details' : 'System / equipment type', vehicle ? '5.7L V8' : 'Washer, dryer, refrigerator…']
+    ['garageMake', vehicle ? 'Make' : 'Brand', vehicle ? 'Make (optional)' : 'Brand (optional)'],
+    ['garageModel', 'Model', vehicle ? 'Model (optional)' : 'Model number (optional)'],
+    ['garageEngine', vehicle ? 'Engine' : type === 'appliance' ? 'Appliance type / details' : 'System / equipment type', vehicle ? 'Engine (optional)' : 'Type / details (optional)']
   ];
   fields.forEach(([id,label,placeholder])=>{
     const input = $('#'+id);
     input.parentElement.firstChild.textContent = label;
     input.placeholder = placeholder;
   });
-  $('#garageName').placeholder = vehicle ? 'My Silverado' : 'My washer';
+  $('#garageName').placeholder = vehicle ? 'Vehicle name' : 'Item name';
 }
 function syncDiagnosisItems(){
   const category = $('#category').value;
@@ -75,21 +89,25 @@ function closeItemEditor(){
   addingFromDiagnosis = false;
 }
 $('#addDiagnosisItem').addEventListener('click',()=>{
+  resetDiagnosis();
+  $('#profileSelect').value = '';
   garageForm.reset();
   $('#garageCategory').value = $('#category').value;
   updateItemFields();
   addingFromDiagnosis = true;
   $('#diagnosisItemEditor').appendChild(garageForm);
   $('#diagnosisItemEditor').hidden = false;
-  $('#garageName').focus();
+  $('#diagnosisItemEditor').scrollIntoView({behavior:'smooth',block:'start'});
+  $('#garageName').focus({preventScroll:true});
 });
 $('#garageCategory').addEventListener('change',updateItemFields);
-$('#category').addEventListener('change',()=>{closeItemEditor();syncDiagnosisItems();});
+$('#category').addEventListener('change',()=>{resetDiagnosis();closeItemEditor();syncDiagnosisItems();});
+$('#profileSelect').addEventListener('change',resetDiagnosis);
 $$('[data-page]').forEach(b=>b.addEventListener('click',closeItemEditor));
 $$('[data-diagnose]').forEach(b=>b.addEventListener('click',()=>{closeItemEditor();syncDiagnosisItems();}));
 const cancelItem = document.createElement('button');
 cancelItem.type='button';cancelItem.textContent='Cancel';
-cancelItem.addEventListener('click',closeItemEditor);garageForm.appendChild(cancelItem);
+cancelItem.addEventListener('click',closeItemEditor);$('#itemEditorActions').appendChild(cancelItem);
 garageForm.addEventListener('submit',e=>{
   e.preventDefault();
   e.stopPropagation();
@@ -100,7 +118,7 @@ garageForm.addEventListener('submit',e=>{
   try{write(GARAGE_KEY,items);}catch{alert('Could not save this item. Your browser storage may be full.');return;}
   const returnToDiagnosis = addingFromDiagnosis;
   closeItemEditor();garageForm.reset();updateItemFields();renderGarage();
-  if(returnToDiagnosis){$('#category').value=item.category;syncDiagnosisItems();$('#profileSelect').value=item.id;}
+  if(returnToDiagnosis){resetDiagnosis();$('#category').value=item.category;syncDiagnosisItems();$('#profileSelect').value=item.id;$('#status').textContent = `${item.name} saved to My Garage. Start a new diagnosis below.`;$('#diagnosisForm').scrollIntoView({behavior:'smooth',block:'start'});}
 });
 updateItemFields();
 syncDiagnosisItems();
@@ -284,6 +302,7 @@ $('#videoInput').addEventListener('change', event => {
 $('#diagnosisForm').addEventListener('submit', async event => {
   event.preventDefault();
 
+  const revision = diagnosisRevision;
   const button = $('#diagnoseButton');
   
   const projectMode = isProjectMode();
@@ -296,6 +315,7 @@ button.disabled = true;
       : 'Analyzing symptoms…';
 
     const uploadedMedia = await uploadSelectedMedia();
+    if(revision !== diagnosisRevision) return;
 
     $('#status').textContent = uploadedMedia.length ? 'Inspecting photos and analyzing symptoms…' : 'Analyzing symptoms…';
 
@@ -327,6 +347,7 @@ button.disabled = true;
     }
 
     const data = await response.json();
+    if(revision !== diagnosisRevision) return;
     renderResult(data);
 
     const top = data.causes[0];
@@ -348,6 +369,7 @@ button.disabled = true;
       ? (data.visual_analysis?.available ? 'Diagnosis and photo inspection complete.' : 'Symptom diagnosis complete. Photos were not analyzed; see details above.')
       : projectMode ? "Project plan complete." : "Diagnosis complete.";
   }catch(error){
+    if(revision !== diagnosisRevision) return;
     $('#status').textContent = `${projectMode ? "Could not build project plan" : "Could not run diagnosis"}: ${error.message}`;
   }finally{
     button.disabled = false;

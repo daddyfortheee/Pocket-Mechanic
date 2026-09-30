@@ -1,5 +1,5 @@
-const CACHE = 'pocket-mechanic-v9';
-const ASSETS = ['/', '/static/index.html', '/static/styles.css?v=9', '/static/app.js?v=9', '/static/manifest.json'];
+const CACHE = 'pocket-mechanic-v10';
+const ASSETS = ['/', '/static/index.html', '/static/styles.css?v=10', '/static/app.js?v=10', '/static/manifest.json'];
 self.addEventListener('install', event => event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(ASSETS)).then(() => self.skipWaiting())));
 self.addEventListener('activate', event => event.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(key => key.startsWith('pocket-mechanic-') && key !== CACHE).map(key => caches.delete(key)))).then(() => self.clients.claim())));
 self.addEventListener('fetch', event => {

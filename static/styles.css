@@ -143,3 +143,8 @@
 }
 
 [hidden]{display:none!important}
+
+#diagnosisItemEditor,#diagnosisForm{scroll-margin-top:100px}
+.item-editor-actions{position:sticky;top:78px;z-index:21;display:flex;gap:12px;align-items:center;flex-wrap:wrap;background:#fff;padding:12px 0;border-bottom:1px solid var(--line)}
+.item-editor-actions button{min-height:44px}
+#diagnosisItemEditor{padding-bottom:24px}

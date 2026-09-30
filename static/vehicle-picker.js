@@ -7,6 +7,7 @@
   const fields = ['makes', 'models', 'engines'];
   const names = ['make', 'model', 'engine / transmission'];
   const manual = '__manual__';
+  const retry = '__retry__';
   const inputs = ids.map(id => document.getElementById(id));
   const generations = [0, 0, 0];
   const selects = inputs.map((input, i) => {
@@ -22,9 +23,10 @@
   help.setAttribute('role', 'status');
   form.appendChild(help);
   const automotive = () => category.value === 'automotive';
-  function setOptions(i, values = [], message = 'Choose ' + names[i]) {
+  function setOptions(i, values = [], message = 'Choose ' + names[i], failed = false) {
     selects[i].replaceChildren(new Option(message, ''),
       ...values.map(value => new Option(value, value)),
+      ...(failed ? [new Option('Try loading again', retry)] : []),
       new Option('Not listed? Enter manually', manual));
     selects[i].disabled = false;
   }
@@ -49,7 +51,7 @@
     if (i > 1) params.set('model', inputs[1].value.trim());
     try {
       const response = await fetch('/api/vehicles/' + fields[i] + '?' + params,
-        {signal: AbortSignal.timeout(15000)});
+        {signal: AbortSignal.timeout(30000)});
       if (!response.ok) throw new Error('catalog unavailable');
       const data = await response.json();
       if (generation !== generations[i] || !automotive()) return;
@@ -59,11 +61,17 @@
         : 'No catalog matches for these details. Use “Not listed? Enter manually.”';
     } catch {
       if (generation !== generations[i] || !automotive()) return;
-      setOptions(i, [], 'Catalog unavailable — enter manually');
-      help.textContent = 'The vehicle catalog could not load. You can still enter and save your vehicle manually.';
+      setOptions(i, [], 'Could not load choices', true);
+      help.textContent = 'The vehicle catalog could not load. Choose “Try loading again” to retry, or enter the details manually.';
     }
   }
   selects.forEach((select, i) => select.addEventListener('change', () => {
+    if (select.value === retry) {
+      inputs[i].value = '';
+      clearFrom(i + 1);
+      load(i);
+      return;
+    }
     generations[i]++;
     clearFrom(i + 1);
     inputs[i].value = select.value === manual ? '' : select.value;

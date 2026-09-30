@@ -20,8 +20,16 @@ def fetch_menu(menu: str, year: int, make: str, model: str, day: int) -> tuple[s
         params["model"] = model
     url = "https://www.fueleconomy.gov/ws/rest/vehicle/menu/" + menu + "?" + urlencode(params)
     request = Request(url, headers={"Accept": "application/xml", "User-Agent": "PocketGuru/1.0"})
-    with urlopen(request, timeout=10) as response:
-        document = ElementTree.fromstring(response.read(2_000_000))
+    # A brief upstream failure must not force the user to abandon the picker.
+    # Bound both attempts so the browser's 30-second deadline has room to spare.
+    for attempt, timeout in enumerate((8, 12)):
+        try:
+            with urlopen(request, timeout=timeout) as response:
+                document = ElementTree.fromstring(response.read(2_000_000))
+            break
+        except (URLError, TimeoutError, OSError, ElementTree.ParseError, ValueError):
+            if attempt == 1:
+                raise
     # Engine menus include the transmission so similar configurations remain distinguishable.
     return tuple(sorted({item.findtext("text", "").strip()
                          for item in document.findall("menuItem")

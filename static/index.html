@@ -3,41 +3,44 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="theme-color" content="#0f172a" />
+  <meta name="theme-color" content="#102e31" />
   <link rel="manifest" href="/static/manifest.json" />
-  <link rel="stylesheet" href="/static/styles.css?v=10" />
-  <title>Pocket Mechanic</title>
+  <link rel="stylesheet" href="/static/styles.css?v=11" />
+  <title>Pocket Guru</title>
 </head>
 <body>
   <header class="topbar">
-    <button class="brand" data-page="home" aria-label="Home"><span class="logo">PM</span><span><strong>Pocket Mechanic</strong><small>Project Atlas 0.5</small></span></button>
-    <span id="connection" class="connection">Local</span>
+    <button class="brand" data-page="home" aria-label="Home"><span class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5L12 3"/></svg></span><span><strong>Pocket Guru</strong><small>Your repair & DIY guide</small></span></button>
+    <span id="connection" class="connection">Connecting…</span>
   </header>
 
   <main class="shell">
     <section id="page-home" class="page active">
       <div class="hero compact">
-        <p class="eyebrow">YOUR REPAIR COMMAND CENTER</p>
-        <h1>What are we fixing?</h1>
-        <p>Choose a system, save it in your garage, then diagnose before replacing parts.</p>
+        <p class="eyebrow">A LITTLE GUIDANCE GOES A LONG WAY</p>
+        <h1>Fix it. Build it.<br><em>You’ve got this.</em></h1>
+        <p>A clearer path from “what’s wrong?” to what to do next. For your car, your home, and your next project.</p>
+        <div class="hero-actions"><button class="primary" data-diagnose="automotive">Find a fix <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14 M13 6l6 6-6 6"/></svg></button><button class="secondary" data-diagnose="diy">Plan a project</button></div>
+        <div class="hero-note">Photos. Symptoms. Practical next steps.</div>
       </div>
 
+      <div class="sectionhead category-heading"><h2>What are you working on?</h2><span class="muted">Choose a category</span></div>
       <div class="category-grid">
-        <button class="category-tile" data-diagnose="automotive"><span>🚗</span><strong>Automotive</strong><small>Cars and trucks</small></button>
-        <button class="category-tile" data-diagnose="motorcycle"><span>🏍️</span><strong>Motorcycle</strong><small>Bikes and ATVs</small></button>
-        <button class="category-tile" data-diagnose="equipment"><span>🚜</span><strong>Equipment</strong><small>Small engines and tools</small></button>
-        <button class="category-tile" data-diagnose="appliance"><span>🧺</span><strong>Appliances</strong><small>Home appliances</small></button>
-        <button class="category-tile" data-diagnose="home"><span>🏠</span><strong>Home Systems</strong><small>Electrical, plumbing, HVAC</small></button>
-        <button class="category-tile" data-diagnose="diy"><span>🛠️</span><strong>DIY Projects</strong><small>Build and repair</small></button>
+        <button class="category-tile" data-diagnose="automotive"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 17H3v-6l2-6h14l2 6v6h-2 M5 11h14 M7 15h.01 M17 15h.01 M5 17v3h3v-3 M16 17v3h3v-3"/></svg></span><strong>Cars & trucks</strong><small>Cars and trucks</small></button>
+        <button class="category-tile" data-diagnose="motorcycle"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 17a4 4 0 1 1-8 0 4 4 0 0 1 8 0 M23 17a4 4 0 1 1-8 0 4 4 0 0 1 8 0 M5 17l5-9 5 9h-10 M10 8h6l3 9 M15 5h3"/></svg></span><strong>Bikes & ATVs</strong><small>Bikes and ATVs</small></button>
+        <button class="category-tile" data-diagnose="equipment"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 6a5 5 0 0 0-6 6L2 18a3 3 0 0 0 4 4l6-6a5 5 0 0 0 6-6l-4 4-4-4 4-4"/></svg></span><strong>Tools & equipment</strong><small>Small engines and tools</small></button>
+        <button class="category-tile" data-diagnose="appliance"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 3h14v18H5z M5 7h14 M8 5h.01 M11 5h.01 M16 14a4 4 0 1 1-8 0 4 4 0 0 1 8 0"/></svg></span><strong>Appliances</strong><small>Home appliances</small></button>
+        <button class="category-tile" data-diagnose="home"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-8 9 8 M5 10v11h14V10 M9 21v-7h6v7"/></svg></span><strong>Home systems</strong><small>Electrical, plumbing, HVAC</small></button>
+        <button class="category-tile" data-diagnose="diy"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5L12 3"/></svg></span><strong>DIY projects</strong><small>Build and repair</small></button>
       </div>
 
       <section class="card quick-actions">
-        <div class="sectionhead"><div><p class="eyebrow">QUICK TOOLS</p><h2>Start here</h2></div></div>
+        <div class="sectionhead"><div><p class="eyebrow">YOUR TOOLKIT</p><h2>A few helpful shortcuts</h2></div></div>
         <div class="action-grid">
-          <button data-page="diagnose"><span>🔎</span>Quick diagnosis</button>
-          <button data-page="garage"><span>🚘</span>My Garage</button>
-          <button data-page="obd"><span>🔌</span>OBD-II lookup</button>
-          <button data-page="library"><span>📚</span>Repair library</button>
+          <button data-page="diagnose"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0 M16 16l6 6"/></svg></span>Find a fix</button>
+          <button data-page="garage"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 17H3v-6l2-6h14l2 6v6h-2 M5 11h14 M7 15h.01 M17 15h.01 M5 17v3h3v-3 M16 17v3h3v-3"/></svg></span>My Garage</button>
+          <button data-page="obd"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2v5 M16 2v5 M5 7h14 M7 7v5a5 5 0 0 0 10 0V7 M12 17v5"/></svg></span>OBD-II lookup</button>
+          <button data-page="library"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v16 M12 5C8 2 4 3 2 4v16c4-2 7-1 10 1 M12 5c4-3 8-2 10-1v16c-4-2-7-1-10 1"/></svg></span>Repair library</button>
         </div>
       </section>
 
@@ -48,36 +51,35 @@
     </section>
 
     <section id="page-diagnose" class="page">
-      <div class="page-title"><button class="back" data-page="home">←</button><div><p class="eyebrow">TEST FIRST</p><h1 id="assistTitle">Quick Diagnosis</h1></div></div>
+      <div class="page-title"><button class="back" data-page="home">←</button><div><p class="eyebrow">LET’S FIGURE IT OUT</p><h1 id="assistTitle">Find a fix</h1></div></div>
       <div id="diagnosisItemEditor" class="card" hidden></div>
       <form id="diagnosisForm" class="card">
-        <label>Category<select id="category" required>
+        <div class="form-intro"><h2>Tell Guru what’s going on</h2><p class="muted">Start with the item and its symptoms. We’ll help you decide what to check next.</p></div>
+        <label>What are you working on?<select id="category" required>
           <option value="automotive">Automotive</option><option value="motorcycle">Motorcycle</option><option value="equipment">Equipment</option><option value="appliance">Appliance</option><option value="home">Home system</option><option value="diy">DIY project</option>
         </select></label>
-        <label>Saved item<select id="profileSelect"><option value="">None selected</option></select></label>
+        <label>Use an item from My Garage<select id="profileSelect"><option value="">Choose an item (optional)</option></select></label>
         <button id="addDiagnosisItem" type="button" class="text-button">Add vehicle</button>
-        <label>What is it doing?
+        <label>What’s going wrong?
           <textarea id="symptom" required minlength="5" placeholder="Describe the exact symptom, when it happens, warning lights, noises, smells, and anything already tested."></textarea>
         </label>
 
         <section class="media-uploader">
           <div class="media-heading">
             <div>
-              <p class="eyebrow">OPTIONAL MEDIA</p>
-              <h2>Add photos or video</h2>
+              <p class="eyebrow">A CLOSER LOOK</p>
+              <h2>Add a photo</h2>
             </div>
             <span id="mediaCount" class="badge">0 files</span>
           </div>
 
           <p class="muted media-help">
-            Add a clear picture of the full item, its brand logo, model-number label,
-            damaged part, wiring, leak, or warning display. You may also add a short video
-            showing the sound, movement, vibration, smoke, or flashing lights.
+            A clear photo of the item, model label, or affected part helps Guru inspect what’s visible. Videos can be attached, but aren’t analyzed yet.
           </p>
 
           <div class="media-buttons">
             <label class="media-button">
-              <span>📷</span>
+              <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h5l2-3h4l2 3h5v15H3z M16 13a4 4 0 1 1-8 0 4 4 0 0 1 8 0"/></svg></span>
               Take pictures
               <input
                 id="cameraInput"
@@ -90,7 +92,7 @@
             </label>
 
             <label class="media-button">
-              <span>🖼️</span>
+              <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3h18v18H3z M3 16l6-6 5 5 3-3 4 4 M16 7h.01"/></svg></span>
               Choose files
               <input
                 id="mediaInput"
@@ -102,7 +104,7 @@
             </label>
 
             <label class="media-button">
-              <span>🎥</span>
+              <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5h12v14H3z M15 9l6-3v12l-6-3"/></svg></span>
               Record video
               <input
                 id="videoInput"
@@ -118,16 +120,16 @@
           <p id="mediaError" class="media-error" role="alert"></p>
         </section>
 
-        <button id="diagnoseButton" class="primary" type="submit">Run diagnosis</button>
-        <p id="status" class="muted"></p>
+        <button id="diagnoseButton" class="primary" type="submit">Find my next steps</button>
+        <p id="status" class="muted" role="status"></p>
       </form>
       <section id="result" class="card result hidden" aria-live="polite"></section>
     </section>
 
     <section id="page-garage" class="page">
-      <div class="page-title"><button class="back" data-page="home">←</button><div><p class="eyebrow">YOUR MACHINES</p><h1>My Garage</h1></div></div>
+      <div class="page-title"><button class="back" data-page="home">←</button><div><p class="eyebrow">EVERYTHING YOU KEEP RUNNING</p><h1>My Garage</h1></div></div>
       <section class="card">
-        <h2>Add an item</h2>
+        <h2>Add to My Garage</h2>
         <form id="garageForm" class="form-grid">
           <div id="itemEditorActions" class="item-editor-actions wide"><button class="primary" type="submit">Save to My Garage</button></div>
           <label>Name<input id="garageName" required placeholder="Vehicle name" /></label>
@@ -145,7 +147,7 @@
     <section id="page-obd" class="page">
       <div class="page-title"><button class="back" data-page="home">←</button><div><p class="eyebrow">CODE READER</p><h1>OBD-II Lookup</h1></div></div>
       <section class="card">
-        <form id="obdForm" class="inline-form"><input id="obdCode" maxlength="5" placeholder="P0300" required /><button class="primary">Look up</button></form>
+        <form id="obdForm" class="inline-form"><input aria-label="OBD-II trouble code" id="obdCode" maxlength="5" placeholder="P0300" required /><button class="primary">Look up</button></form>
         <p class="muted">Offline starter library: P0300, P0171, P0420, P0456, U0100.</p>
         <div id="obdResult"></div>
       </section>
@@ -154,29 +156,29 @@
     <section id="page-library" class="page">
       <div class="page-title"><button class="back" data-page="home">←</button><div><p class="eyebrow">REFERENCE</p><h1>Repair Library</h1></div></div>
       <div class="library-grid">
-        <article class="card library-card"><span>⚡</span><h2>Electrical basics</h2><p>Voltage-drop testing, continuity, grounds, fuses, relays, and connector inspection.</p></article>
-        <article class="card library-card"><span>🔧</span><h2>Diagnostic workflow</h2><p>Verify the complaint, inspect, test, confirm the failed part, then repair and re-test.</p></article>
-        <article class="card library-card"><span>🛡️</span><h2>Safety gates</h2><p>Stop-work rules for fuel, fire, high voltage, lifting, pressure, and rotating equipment.</p></article>
-        <article class="card library-card"><span>🧰</span><h2>Tool guides</h2><p>Multimeter, test light, scan tool, compression gauge, pressure gauge, and torque wrench.</p></article>
+        <article class="card library-card"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2L4 14h7l-1 8 10-13h-7z"/></svg></span><h2>Electrical basics</h2><p>Voltage-drop testing, continuity, grounds, fuses, relays, and connector inspection.</p></article>
+        <article class="card library-card"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 6a5 5 0 0 0-6 6L2 18a3 3 0 0 0 4 4l6-6a5 5 0 0 0 6-6l-4 4-4-4 4-4"/></svg></span><h2>Diagnostic workflow</h2><p>Verify the complaint, inspect, test, confirm the failed part, then repair and re-test.</p></article>
+        <article class="card library-card"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2l8 4v6c0 5-8 10-8 10S4 17 4 12V6z M8 12l3 3 5-6"/></svg></span><h2>Safety gates</h2><p>Stop-work rules for fuel, fire, high voltage, lifting, pressure, and rotating equipment.</p></article>
+        <article class="card library-card"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 6a5 5 0 0 0-6 6L2 18a3 3 0 0 0 4 4l6-6a5 5 0 0 0 6-6l-4 4-4-4 4-4"/></svg></span><h2>Tool guides</h2><p>Multimeter, test light, scan tool, compression gauge, pressure gauge, and torque wrench.</p></article>
       </div>
       <section class="card coming"><h2>Growing library</h2><p>This section is the foundation for vehicle-specific procedures, appliance service guides, wiring diagrams, torque specifications, and parts references.</p></section>
     </section>
 
     <section id="page-history" class="page">
-      <div class="page-title"><button class="back" data-page="home">←</button><div><p class="eyebrow">SAVED LOCALLY</p><h1>Repair History</h1></div></div>
+      <div class="page-title"><button class="back" data-page="home">←</button><div><p class="eyebrow">YOUR RECENT WORK</p><h1>Repair History</h1></div></div>
       <section class="card"><div id="fullHistory" class="history"></div></section>
     </section>
   </main>
 
   <nav class="bottom-nav" aria-label="Main navigation">
-    <button data-page="home" class="active"><span>⌂</span>Home</button>
-    <button data-page="garage"><span>🚘</span>Garage</button>
-    <button data-page="diagnose" class="diagnose-nav"><span>＋</span>Diagnose</button>
-    <button data-page="library"><span>📚</span>Library</button>
-    <button data-page="history"><span>🕘</span>History</button>
+    <button data-page="home" class="active"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-8 9 8 M5 10v11h14V10 M9 21v-7h6v7"/></svg></span>Home</button>
+    <button data-page="garage"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 17H3v-6l2-6h14l2 6v6h-2 M5 11h14 M7 15h.01 M17 15h.01 M5 17v3h3v-3 M16 17v3h3v-3"/></svg></span>Garage</button>
+    <button data-page="diagnose" class="diagnose-nav"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0 M16 16l6 6"/></svg></span>Diagnose</button>
+    <button data-page="library"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v16 M12 5C8 2 4 3 2 4v16c4-2 7-1 10 1 M12 5c4-3 8-2 10-1v16c-4-2-7-1-10 1"/></svg></span>Library</button>
+    <button data-page="history"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11a9 9 0 1 1 2 7 M3 4v7h7 M12 7v6l4 2"/></svg></span>History</button>
   </nav>
 
-  <script src="/static/app.js?v=10"></script>
+  <script src="/static/app.js?v=11"></script>
 
 <script>
 /* POCKET_INLINE_PROJECT_UI */
@@ -239,19 +241,19 @@
           "Add clear photos or video of the work area, layout, measurements, existing materials, damage, or the result you want to recreate.";
       }
     } else {
-      if (title) title.textContent = "Quick Diagnosis";
+      if (title) title.textContent = "Find a fix";
 
-      setLabelText(symptomLabel, "What is it doing?");
+      setLabelText(symptomLabel, "What’s going wrong?");
 
       if (symptom) {
         symptom.placeholder =
           "Describe the exact symptom, when it happens, warning lights, noises, smells, and anything already tested.";
       }
 
-      if (button) button.textContent = "Run diagnosis";
+      if (button) button.textContent = "Find my next steps";
 
       if (mediaHeading) {
-        mediaHeading.textContent = "Add photos or video";
+        mediaHeading.textContent = "Add a photo";
       }
     }
   }

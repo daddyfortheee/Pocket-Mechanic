@@ -1,1 +1,17 @@
-{"name":"Pocket Mechanic","short_name":"Pocket Mechanic","start_url":"/?v=4","display":"standalone","background_color":"#eef1f5","theme_color":"#0f172a","description":"Project Atlas repair and diagnostic dashboard"}
+{
+  "name": "Pocket Guru",
+  "short_name": "Pocket Guru",
+  "start_url": "/?v=11",
+  "display": "standalone",
+  "background_color": "#f4f7f6",
+  "theme_color": "#102e31",
+  "description": "Your guide to repairs, diagnosis, and DIY projects.",
+  "icons": [
+    {
+      "src": "/static/guru-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

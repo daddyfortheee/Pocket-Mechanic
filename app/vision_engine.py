@@ -115,7 +115,7 @@ def analyze_uploaded_images(
         }
 
     prompt = f"""
-You are Pocket Engineering's visual inspection assistant.
+You are Pocket Guru's visual inspection assistant.
 
 Repair category: {category}
 Reported symptom: {symptom}

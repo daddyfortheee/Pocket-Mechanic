@@ -42,7 +42,7 @@ ALLOWED_VIDEO_TYPES = {
     "video/quicktime",
 }
 
-app = FastAPI(title="Pocket Mechanic API", version="0.5.1")
+app = FastAPI(title="Pocket Guru API", version="0.6.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -400,7 +400,7 @@ def diagnose(req: DiagnosisRequest) -> DiagnosisResponse:
         category=req.category,
         symptom=req.symptom,
         summary=(
-            f"Pocket Mechanic found {len(matches)} likely diagnostic "
+            f"Pocket Guru found {len(matches)} likely diagnostic "
             f"{path_word}.{media_summary}"
         ),
         safety_message=safety_message,

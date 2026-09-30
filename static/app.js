@@ -33,9 +33,9 @@ $('#clearHistory').addEventListener('click',()=>{write(HISTORY_KEY,[]);renderHis
 
 function renderGarage(){
   const items=read(GARAGE_KEY); $('#garageCount').textContent=items.length;
-  $('#garageList').innerHTML=items.length?items.map(x=>`<article class="garage-item"><div><h3>${esc(x.name)}</h3><div class="garage-meta">${esc([x.year,x.make,x.model,x.engine].filter(Boolean).join(' · '))}</div>${x.notes?`<small>${esc(x.notes)}</small>`:''}</div><div class="garage-actions"><button data-use="${esc(x.id)}">Diagnose</button><button data-delete="${esc(x.id)}">✕</button></div></article>`).join(''):'<p class="muted">Your garage is empty. Add your first vehicle, appliance, or piece of equipment.</p>';
+  $('#garageList').innerHTML=items.length?items.map(x=>`<article class="garage-item"><div><h3>${esc(x.name)}</h3><div class="garage-meta">${esc([x.year,x.make,x.model,x.engine].filter(Boolean).join(' · '))}</div>${x.notes?`<small>${esc(x.notes)}</small>`:''}</div><div class="garage-actions"><button data-use="${esc(x.id)}">Diagnose</button><button data-delete="${esc(x.id)}" aria-label="Remove ${esc(x.name)} from My Garage">✕</button></div></article>`).join(''):'<p class="muted">Your garage is empty. Add your first vehicle, appliance, or piece of equipment.</p>';
   const selectedId = $('#profileSelect').value;
-  $('#profileSelect').innerHTML='<option value="">None selected</option>'+items.map(x=>`<option value="${esc(x.id)}">${esc(x.name)}</option>`).join('');
+  $('#profileSelect').innerHTML='<option value="">Choose an item (optional)</option>'+items.map(x=>`<option value="${esc(x.id)}">${esc(x.name)}</option>`).join('');
   syncDiagnosisItems(); $('#profileSelect').value=selectedId;
   $$('[data-delete]').forEach(b=>b.onclick=()=>{write(GARAGE_KEY,items.filter(x=>x.id!==b.dataset.delete));renderGarage();});
   $$('[data-use]').forEach(b=>b.onclick=()=>{const x=items.find(i=>i.id===b.dataset.use);if(x){$('#category').value=x.category;syncDiagnosisItems();$('#profileSelect').value=x.id;$('#category').dispatchEvent(new Event('change'));$('#profileSelect').value=x.id;showPage('diagnose');}});
@@ -78,7 +78,7 @@ function updateItemFields(){
 function syncDiagnosisItems(){
   const category = $('#category').value;
   const previous = $('#profileSelect').value;
-  $('#profileSelect').innerHTML = '<option value="">None selected</option>' + read(GARAGE_KEY).filter(x=>x.category===category).map(x=>`<option value="${esc(x.id)}">${esc(x.name)}</option>`).join('');
+  $('#profileSelect').innerHTML = '<option value="">Choose an item (optional)</option>' + read(GARAGE_KEY).filter(x=>x.category===category).map(x=>`<option value="${esc(x.id)}">${esc(x.name)}</option>`).join('');
   $('#profileSelect').value = previous;
   $('#addDiagnosisItem').textContent = ['automotive','motorcycle'].includes(category) ? 'Add vehicle' : category==='appliance' ? 'Add appliance' : 'Add item';
   $('#addDiagnosisItem').hidden = category==='diy';
@@ -131,7 +131,7 @@ function renderVisualAnalysis(analysis){
 }
 
 function renderResult(data){
-  const r=$('#result');r.classList.remove('hidden');r.innerHTML=`<h2>Diagnostic result</h2><p>${esc(data.summary)}</p>${renderVisualAnalysis(data.visual_analysis)}<div class="safety">${esc(data.safety_message)}</div>${data.causes.map(c=>`<article class="cause"><h3>${esc(c.title)} <span class="confidence">${Math.round(c.confidence*100)}%</span></h3><p>${esc(c.why)}</p><h4>Checks</h4><ol>${c.checks.map(v=>`<li>${esc(v)}</li>`).join('')}</ol><h4>Repair path</h4><ul>${c.repair.map(v=>`<li>${esc(v)}</li>`).join('')}</ul></article>`).join('')}`;r.scrollIntoView({behavior:'smooth',block:'start'});
+  const r=$('#result');r.classList.remove('hidden');r.innerHTML=`<h2>Your next steps</h2><p>${esc(data.summary)}</p>${renderVisualAnalysis(data.visual_analysis)}<div class="safety">${esc(data.safety_message)}</div>${data.causes.map(c=>`<article class="cause"><h3>${esc(c.title)} <span class="confidence">${Math.round(c.confidence*100)}%</span></h3><p>${esc(c.why)}</p><h4>Checks</h4><ol>${c.checks.map(v=>`<li>${esc(v)}</li>`).join('')}</ol><h4>Repair path</h4><ul>${c.repair.map(v=>`<li>${esc(v)}</li>`).join('')}</ul></article>`).join('')}`;r.scrollIntoView({behavior:'smooth',block:'start'});
 }
 
 
@@ -381,7 +381,7 @@ $('#obdForm').addEventListener('submit',async e=>{
   try{const res=await fetch(`/api/obd/${encodeURIComponent(code)}`);if(!res.ok)throw new Error('This code is not in the offline starter library yet.');const d=await res.json();out.innerHTML=`<article class="obd-card"><p class="eyebrow">${esc(d.system)}</p><h2>${esc(d.code)} — ${esc(d.title)}</h2><h3>First checks</h3><ol>${d.first_checks.map(x=>`<li>${esc(x)}</li>`).join('')}</ol></article>`;}catch(err){out.innerHTML=`<div class="safety">${esc(err.message)}</div>`;}
 });
 
-async function connection(){try{const r=await fetch('/health');const d=await r.json();$('#connection').textContent=d.version ? `Connected · v${d.version}` : 'Connected';}catch{$('#connection').textContent='Offline';}}
+async function connection(){try{const r=await fetch('/health');const d=await r.json();$('#connection').textContent=d.version ? 'Connected' : 'Connected';}catch{$('#connection').textContent='Offline';}}
 if('serviceWorker'in navigator)navigator.serviceWorker.register('/static/service-worker.js').catch(()=>{});
 renderHistory();renderGarage();connection();
 
@@ -448,7 +448,7 @@ renderHistory();renderGarage();connection();
       }
     } else {
       if (title) {
-        title.textContent = "Quick Diagnosis";
+        title.textContent = "Find a fix";
       }
 
       if (symptomLabel) {
@@ -459,7 +459,7 @@ renderHistory();renderGarage();connection();
         );
 
         if (textNode) {
-          textNode.textContent = "What is it doing?";
+          textNode.textContent = "What’s going wrong?";
         }
       }
 
@@ -469,16 +469,16 @@ renderHistory();renderGarage();connection();
       }
 
       if (button) {
-        button.textContent = "Run diagnosis";
+        button.textContent = "Find my next steps";
       }
 
       if (mediaHeading) {
-        mediaHeading.textContent = "Add photos or video";
+        mediaHeading.textContent = "Add a photo";
       }
 
       if (mediaHelp) {
         mediaHelp.textContent =
-          "Add a clear picture of the full item, its brand logo, model-number label, damaged part, wiring, leak, or warning display. You may also add a short video showing the sound, movement, vibration, smoke, or flashing lights.";
+          "Add a clear photo of the item, model label, or affected part. Videos can be attached, but aren’t analyzed yet.";
       }
     }
   }

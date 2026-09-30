@@ -32,7 +32,7 @@ def build_project_plan(
             "title": "12x24 tile installation plan",
             "confidence": 0.94,
             "summary": (
-                "Pocket Mechanic created a tile-installation project plan."
+                "Pocket Guru created a tile-installation project plan."
                 + media_note
             ),
             "safety_message": (
@@ -78,7 +78,7 @@ def build_project_plan(
             "title": "Flooring installation plan",
             "confidence": 0.90,
             "summary": (
-                "Pocket Mechanic created a flooring installation plan."
+                "Pocket Guru created a flooring installation plan."
                 + media_note
             ),
             "safety_message": (
@@ -119,7 +119,7 @@ def build_project_plan(
             "title": "Plumbing installation plan",
             "confidence": 0.86,
             "summary": (
-                "Pocket Mechanic created a plumbing installation plan."
+                "Pocket Guru created a plumbing installation plan."
                 + media_note
             ),
             "safety_message": (
@@ -155,7 +155,7 @@ def build_project_plan(
             "title": "Painting project plan",
             "confidence": 0.88,
             "summary": (
-                "Pocket Mechanic created a painting project plan."
+                "Pocket Guru created a painting project plan."
                 + media_note
             ),
             "safety_message": (
@@ -185,7 +185,7 @@ def build_project_plan(
         "title": "DIY project plan",
         "confidence": 0.76,
         "summary": (
-            "Pocket Mechanic created a general project plan."
+            "Pocket Guru created a general project plan."
             + media_note
         ),
         "safety_message": (
@@ -208,6 +208,6 @@ def build_project_plan(
         ],
         "repair": [
             "Add dimensions, material details, and pictures for a more detailed plan.",
-            "Pocket Mechanic can then calculate quantities and produce an ordered installation guide.",
+            "Pocket Guru can then calculate quantities and produce an ordered installation guide.",
         ],
     }

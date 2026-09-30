@@ -1,3 +1,5 @@
+(() => {
+if(!window.pocketGuruUser?.verified) return;
 
 function isProjectMode() {
   const category = ($("#category")?.value || "").toLowerCase();
@@ -13,8 +15,8 @@ function isProjectMode() {
 
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => [...document.querySelectorAll(s)];
-const HISTORY_KEY = 'pocket-mechanic-history-v4';
-const GARAGE_KEY = 'pocket-mechanic-garage-v4';
+const HISTORY_KEY = 'pocket-guru-history-v1:' + window.pocketGuruUser.id;
+const GARAGE_KEY = 'pocket-guru-garage-v1:' + window.pocketGuruUser.id;
 
 function esc(v){return String(v ?? '').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));}
 function read(key){try{return JSON.parse(localStorage.getItem(key)||'[]')}catch{return[]}}
@@ -384,6 +386,24 @@ $('#obdForm').addEventListener('submit',async e=>{
 async function connection(){try{const r=await fetch('/health');const d=await r.json();$('#connection').textContent=d.version ? 'Connected' : 'Connected';}catch{$('#connection').textContent='Offline';}}
 if('serviceWorker'in navigator)navigator.serviceWorker.register('/static/service-worker.js').catch(()=>{});
 renderHistory();renderGarage();connection();
+const legacyGarage = read('pocket-mechanic-garage-v4');
+const legacyHistory = read('pocket-mechanic-history-v4');
+if(!localStorage.getItem('pocket-guru-legacy-claimed') && (legacyGarage.length || legacyHistory.length)){
+  $('#legacyImport').hidden = false;
+}
+$('#importLocalData').addEventListener('click',()=>{
+  try{
+    const garage = read(GARAGE_KEY);
+    const history = read(HISTORY_KEY);
+    write(GARAGE_KEY,[...garage,...legacyGarage.filter(item=>!garage.some(saved=>saved.id===item.id))]);
+    write(HISTORY_KEY,[...history,...legacyHistory.filter(item=>!history.some(saved=>saved.created_at===item.created_at && saved.symptom===item.symptom))].slice(0,30));
+    localStorage.setItem('pocket-guru-legacy-claimed',window.pocketGuruUser.id);
+    localStorage.removeItem('pocket-mechanic-garage-v4');
+    localStorage.removeItem('pocket-mechanic-history-v4');
+    $('#legacyImport').hidden = true;
+    renderGarage();renderHistory();
+  }catch{alert('Could not import your saved items. Your browser storage may be full.');}
+});
 
 /* POCKET_PROJECT_UI_V3 */
 (() => {
@@ -501,4 +521,6 @@ renderHistory();renderGarage();connection();
   } else {
     initializeProjectInterface();
   }
+})();
+
 })();

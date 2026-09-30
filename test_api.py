@@ -6,12 +6,12 @@ client = TestClient(app)
 def test_health():
     response = client.get('/health')
     assert response.status_code == 200
-    assert response.json()['version'] == '0.4.0'
+    assert response.json()['version'] == '0.5.1'
 
 def test_diagnosis():
     response = client.post('/api/diagnoses', json={'category':'automotive','symptom':'speedometer odometer and cruise do not work','answers':{}})
     assert response.status_code == 201
-    assert response.json()['causes'][0]['title'] == 'Vehicle speed signal loss'
+    assert response.json()['causes'][0]['title'] == 'Vehicle-speed signal fault'
 
 def test_obd():
     response = client.get('/api/obd/P0300')

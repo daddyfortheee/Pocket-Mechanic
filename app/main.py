@@ -15,6 +15,7 @@ from pydantic import BaseModel, Field
 from app.diagnosis_engine import build_diagnostic_causes, fallback_cause
 from app.project_planner import build_project_plan
 from app.vision_engine import analyze_uploaded_images, VisionUnavailableError
+from app.vehicle_catalog import router as vehicle_catalog_router
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 STATIC_DIR = BASE_DIR / "static"
@@ -43,6 +44,7 @@ ALLOWED_VIDEO_TYPES = {
 }
 
 app = FastAPI(title="Pocket Guru API", version="0.6.0")
+app.include_router(vehicle_catalog_router)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],

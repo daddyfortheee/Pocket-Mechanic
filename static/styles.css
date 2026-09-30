@@ -13,3 +13,5 @@ h1,h2,h3,h4{color:inherit}h2{font-size:1.12rem;font-weight:750;letter-spacing:-.
 
 
 #diagnosisItemEditor{border-top:1px solid var(--line);padding-top:10px;margin-top:12px}.save-item-choice{display:flex;align-items:center;gap:10px;font-size:.85rem}.save-item-choice input{width:20px;min-height:20px;margin:0;padding:0;flex-shrink:0}
+
+.work-actions{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:12px}.work-actions button{min-height:44px;padding:8px 14px;border:1px solid var(--line);border-radius:10px;background:#edf5f0;color:var(--accent);font-weight:650;font-size:.8rem}.work-actions button[data-delete-work]{color:#9a3838;background:#fff5f5}.work-fixed{margin-left:10px}.history-item{overflow-wrap:anywhere}

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#0f172a" />
   <link rel="manifest" href="/static/manifest.json" />
-  <link rel="stylesheet" href="/static/styles.css?v=5" />
+  <link rel="stylesheet" href="/static/styles.css?v=9" />
   <title>Pocket Mechanic</title>
 </head>
 <body>
@@ -49,11 +49,13 @@
 
     <section id="page-diagnose" class="page">
       <div class="page-title"><button class="back" data-page="home">←</button><div><p class="eyebrow">TEST FIRST</p><h1 id="assistTitle">Quick Diagnosis</h1></div></div>
+      <div id="diagnosisItemEditor" class="card" hidden></div>
       <form id="diagnosisForm" class="card">
         <label>Category<select id="category" required>
           <option value="automotive">Automotive</option><option value="motorcycle">Motorcycle</option><option value="equipment">Equipment</option><option value="appliance">Appliance</option><option value="home">Home system</option><option value="diy">DIY project</option>
         </select></label>
         <label>Saved item<select id="profileSelect"><option value="">None selected</option></select></label>
+        <button id="addDiagnosisItem" type="button" class="text-button">Add vehicle</button>
         <label>What is it doing?
           <textarea id="symptom" required minlength="5" placeholder="Describe the exact symptom, when it happens, warning lights, noises, smells, and anything already tested."></textarea>
         </label>
@@ -174,7 +176,7 @@
     <button data-page="history"><span>🕘</span>History</button>
   </nav>
 
-  <script src="/static/app.js?v=6"></script>
+  <script src="/static/app.js?v=9"></script>
 
 <script>
 /* POCKET_INLINE_PROJECT_UI */

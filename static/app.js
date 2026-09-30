@@ -22,7 +22,7 @@ function write(key,value){localStorage.setItem(key,JSON.stringify(value));}
 function showPage(name){$$('.page').forEach(p=>p.classList.toggle('active',p.id===`page-${name}`));$$('.bottom-nav button').forEach(b=>b.classList.toggle('active',b.dataset.page===name));window.scrollTo({top:0,behavior:'smooth'});}
 
 $$('[data-page]').forEach(b=>b.addEventListener('click',()=>showPage(b.dataset.page)));
-$$('[data-diagnose]').forEach(b=>b.addEventListener('click',()=>{$('#category').value=b.dataset.diagnose;showPage('diagnose');}));
+$$('[data-diagnose]').forEach(b=>b.addEventListener('click',()=>{$('#category').value=b.dataset.diagnose;$('#category').dispatchEvent(new Event('change'));showPage('diagnose');}));
 
 function renderHistory(){
   const items=read(HISTORY_KEY);
@@ -34,19 +34,86 @@ $('#clearHistory').addEventListener('click',()=>{write(HISTORY_KEY,[]);renderHis
 function renderGarage(){
   const items=read(GARAGE_KEY); $('#garageCount').textContent=items.length;
   $('#garageList').innerHTML=items.length?items.map(x=>`<article class="garage-item"><div><h3>${esc(x.name)}</h3><div class="garage-meta">${esc([x.year,x.make,x.model,x.engine].filter(Boolean).join(' · '))}</div>${x.notes?`<small>${esc(x.notes)}</small>`:''}</div><div class="garage-actions"><button data-use="${esc(x.id)}">Diagnose</button><button data-delete="${esc(x.id)}">✕</button></div></article>`).join(''):'<p class="muted">Your garage is empty. Add your first vehicle, appliance, or piece of equipment.</p>';
+  const selectedId = $('#profileSelect').value;
   $('#profileSelect').innerHTML='<option value="">None selected</option>'+items.map(x=>`<option value="${esc(x.id)}">${esc(x.name)}</option>`).join('');
+  syncDiagnosisItems(); $('#profileSelect').value=selectedId;
   $$('[data-delete]').forEach(b=>b.onclick=()=>{write(GARAGE_KEY,items.filter(x=>x.id!==b.dataset.delete));renderGarage();});
-  $$('[data-use]').forEach(b=>b.onclick=()=>{const x=items.find(i=>i.id===b.dataset.use);if(x){$('#category').value=x.category;$('#profileSelect').value=x.id;showPage('diagnose');}});
+  $$('[data-use]').forEach(b=>b.onclick=()=>{const x=items.find(i=>i.id===b.dataset.use);if(x){$('#category').value=x.category;syncDiagnosisItems();$('#profileSelect').value=x.id;$('#category').dispatchEvent(new Event('change'));$('#profileSelect').value=x.id;showPage('diagnose');}});
 }
 
-$('#garageForm').addEventListener('submit',e=>{
-  e.preventDefault(); const items=read(GARAGE_KEY);
-  items.unshift({id:crypto.randomUUID?crypto.randomUUID():String(Date.now()),name:$('#garageName').value.trim(),category:$('#garageCategory').value,year:$('#garageYear').value,make:$('#garageMake').value.trim(),model:$('#garageModel').value.trim(),engine:$('#garageEngine').value.trim(),notes:$('#garageNotes').value.trim()});
-  write(GARAGE_KEY,items);e.target.reset();renderGarage();
+let addingFromDiagnosis = false;
+const garageForm = $('#garageForm');
+const garageFormHome = garageForm.parentElement;
+function updateItemFields(){
+  const type = $('#garageCategory').value;
+  const vehicle = ['automotive','motorcycle'].includes(type);
+  $('#garageYear').parentElement.hidden = !vehicle;
+  $('#garageYear').disabled = !vehicle;
+  const fields = [
+    ['garageMake', vehicle ? 'Make' : 'Brand', vehicle ? 'Chevrolet' : 'GE'],
+    ['garageModel', 'Model', vehicle ? 'Silverado' : 'Model number'],
+    ['garageEngine', vehicle ? 'Engine' : type === 'appliance' ? 'Appliance type / details' : 'System / equipment type', vehicle ? '5.7L V8' : 'Washer, dryer, refrigerator…']
+  ];
+  fields.forEach(([id,label,placeholder])=>{
+    const input = $('#'+id);
+    input.parentElement.firstChild.textContent = label;
+    input.placeholder = placeholder;
+  });
+  $('#garageName').placeholder = vehicle ? 'My Silverado' : 'My washer';
+}
+function syncDiagnosisItems(){
+  const category = $('#category').value;
+  const previous = $('#profileSelect').value;
+  $('#profileSelect').innerHTML = '<option value="">None selected</option>' + read(GARAGE_KEY).filter(x=>x.category===category).map(x=>`<option value="${esc(x.id)}">${esc(x.name)}</option>`).join('');
+  $('#profileSelect').value = previous;
+  $('#addDiagnosisItem').textContent = ['automotive','motorcycle'].includes(category) ? 'Add vehicle' : category==='appliance' ? 'Add appliance' : 'Add item';
+  $('#addDiagnosisItem').hidden = category==='diy';
+}
+function closeItemEditor(){
+  garageFormHome.appendChild(garageForm);
+  $('#diagnosisItemEditor').hidden = true;
+  addingFromDiagnosis = false;
+}
+$('#addDiagnosisItem').addEventListener('click',()=>{
+  garageForm.reset();
+  $('#garageCategory').value = $('#category').value;
+  updateItemFields();
+  addingFromDiagnosis = true;
+  $('#diagnosisItemEditor').appendChild(garageForm);
+  $('#diagnosisItemEditor').hidden = false;
+  $('#garageName').focus();
 });
+$('#garageCategory').addEventListener('change',updateItemFields);
+$('#category').addEventListener('change',()=>{closeItemEditor();syncDiagnosisItems();});
+$$('[data-page]').forEach(b=>b.addEventListener('click',closeItemEditor));
+$$('[data-diagnose]').forEach(b=>b.addEventListener('click',()=>{closeItemEditor();syncDiagnosisItems();}));
+const cancelItem = document.createElement('button');
+cancelItem.type='button';cancelItem.textContent='Cancel';
+cancelItem.addEventListener('click',closeItemEditor);garageForm.appendChild(cancelItem);
+garageForm.addEventListener('submit',e=>{
+  e.preventDefault();
+  e.stopPropagation();
+  const items=read(GARAGE_KEY);
+  const item={id:crypto.randomUUID?crypto.randomUUID():String(Date.now()),name:$('#garageName').value.trim(),category:$('#garageCategory').value,year:$('#garageYear').disabled?'':$('#garageYear').value,make:$('#garageMake').value.trim(),model:$('#garageModel').value.trim(),engine:$('#garageEngine').value.trim(),notes:$('#garageNotes').value.trim()};
+  if(!item.name){$('#garageName').focus();return;}
+  items.unshift(item);
+  try{write(GARAGE_KEY,items);}catch{alert('Could not save this item. Your browser storage may be full.');return;}
+  const returnToDiagnosis = addingFromDiagnosis;
+  closeItemEditor();garageForm.reset();updateItemFields();renderGarage();
+  if(returnToDiagnosis){$('#category').value=item.category;syncDiagnosisItems();$('#profileSelect').value=item.id;}
+});
+updateItemFields();
+syncDiagnosisItems();
+
+function renderVisualAnalysis(analysis){
+  if(!analysis) return '';
+  if(!analysis.available) return `<section class="cause"><h3>Photos were not analyzed</h3><p>${esc(analysis.reason)}</p>${analysis.attachment_warning ? `<p>${esc(analysis.attachment_warning)}</p>` : ''}</section>`;
+  const list = (title, items) => Array.isArray(items) && items.length ? `<h4>${title}</h4><ul>${items.map(item => `<li>${esc(item)}</li>`).join('')}</ul>` : '';
+  return `<section class="cause"><h3>Photo inspection</h3><p class="muted">Preliminary visual evidence. Confirm the fault with tests before ordering parts.</p><p><strong>Brand:</strong> ${esc(analysis.brand)}<br><strong>Model:</strong> ${esc(analysis.model)}<br><strong>Serial / VIN:</strong> ${esc(analysis.serial_or_vin)}</p>${list('Visible label text',analysis.visible_text)}${list('Visible components',analysis.identified_parts)}${list('Visible abnormalities',analysis.visible_problems)}<p>${esc(analysis.likely_relevance)}</p>${list('Next photos and tests',analysis.follow_up)}${analysis.safety_warning && !['None','Unknown'].includes(analysis.safety_warning) ? `<div class="safety">${esc(analysis.safety_warning)}</div>` : ''}<p class="muted">Analyzed: ${(analysis.analyzed_files || []).map(esc).join(', ')}</p>${list('Not analyzed',analysis.skipped_files)}${analysis.attachment_warning ? `<p>${esc(analysis.attachment_warning)}</p>` : ''}</section>`;
+}
 
 function renderResult(data){
-  const r=$('#result');r.classList.remove('hidden');r.innerHTML=`<h2>Diagnostic result</h2><p>${esc(data.summary)}</p><div class="safety">${esc(data.safety_message)}</div>${data.causes.map(c=>`<article class="cause"><h3>${esc(c.title)} <span class="confidence">${Math.round(c.confidence*100)}%</span></h3><p>${esc(c.why)}</p><h4>Checks</h4><ol>${c.checks.map(v=>`<li>${esc(v)}</li>`).join('')}</ol><h4>Repair path</h4><ul>${c.repair.map(v=>`<li>${esc(v)}</li>`).join('')}</ul></article>`).join('')}`;r.scrollIntoView({behavior:'smooth',block:'start'});
+  const r=$('#result');r.classList.remove('hidden');r.innerHTML=`<h2>Diagnostic result</h2><p>${esc(data.summary)}</p>${renderVisualAnalysis(data.visual_analysis)}<div class="safety">${esc(data.safety_message)}</div>${data.causes.map(c=>`<article class="cause"><h3>${esc(c.title)} <span class="confidence">${Math.round(c.confidence*100)}%</span></h3><p>${esc(c.why)}</p><h4>Checks</h4><ol>${c.checks.map(v=>`<li>${esc(v)}</li>`).join('')}</ol><h4>Repair path</h4><ul>${c.repair.map(v=>`<li>${esc(v)}</li>`).join('')}</ul></article>`).join('')}`;r.scrollIntoView({behavior:'smooth',block:'start'});
 }
 
 
@@ -230,13 +297,14 @@ button.disabled = true;
 
     const uploadedMedia = await uploadSelectedMedia();
 
-    $('#status').textContent = 'Analyzing symptoms…';
+    $('#status').textContent = uploadedMedia.length ? 'Inspecting photos and analyzing symptoms…' : 'Analyzing symptoms…';
 
     const payload = {
       category: $('#category').value,
       symptom: $('#symptom').value,
       answers: {
-        media: uploadedMedia
+        media: uploadedMedia,
+        item: read(GARAGE_KEY).find(x=>x.id === $('#profileSelect').value) || null
       },
       profile_id: $('#profileSelect').value || null
     };
@@ -277,7 +345,7 @@ button.disabled = true;
     renderHistory();
 
     $('#status').textContent = uploadedMedia.length
-      ? `Diagnosis complete with ${uploadedMedia.length} attachment${uploadedMedia.length === 1 ? '' : 's'}.`
+      ? (data.visual_analysis?.available ? 'Diagnosis and photo inspection complete.' : 'Symptom diagnosis complete. Photos were not analyzed; see details above.')
       : projectMode ? "Project plan complete." : "Diagnosis complete.";
   }catch(error){
     $('#status').textContent = `${projectMode ? "Could not build project plan" : "Could not run diagnosis"}: ${error.message}`;
@@ -291,7 +359,7 @@ $('#obdForm').addEventListener('submit',async e=>{
   try{const res=await fetch(`/api/obd/${encodeURIComponent(code)}`);if(!res.ok)throw new Error('This code is not in the offline starter library yet.');const d=await res.json();out.innerHTML=`<article class="obd-card"><p class="eyebrow">${esc(d.system)}</p><h2>${esc(d.code)} — ${esc(d.title)}</h2><h3>First checks</h3><ol>${d.first_checks.map(x=>`<li>${esc(x)}</li>`).join('')}</ol></article>`;}catch(err){out.innerHTML=`<div class="safety">${esc(err.message)}</div>`;}
 });
 
-async function connection(){try{const r=await fetch('/health');const d=await r.json();$('#connection').textContent=`Local · v${d.version}`;}catch{$('#connection').textContent='Offline';}}
+async function connection(){try{const r=await fetch('/health');const d=await r.json();$('#connection').textContent=d.version ? `Connected · v${d.version}` : 'Connected';}catch{$('#connection').textContent='Offline';}}
 if('serviceWorker'in navigator)navigator.serviceWorker.register('/static/service-worker.js').catch(()=>{});
 renderHistory();renderGarage();connection();
 

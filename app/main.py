@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from pathlib import Path
+import os
 import re
 from typing import Any, Literal
 from uuid import uuid4
@@ -13,6 +14,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from app.diagnosis_engine import build_diagnostic_causes, fallback_cause
 from app.project_planner import build_project_plan
+from app.vision_engine import analyze_uploaded_images, VisionUnavailableError
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 STATIC_DIR = BASE_DIR / "static"
@@ -21,6 +23,8 @@ UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 MAX_IMAGE_SIZE = 15 * 1024 * 1024
 MAX_VIDEO_SIZE = 75 * 1024 * 1024
+UPLOADED_MEDIA: dict[str, dict[str, Any]] = {}
+
 MAX_IMAGES = 6
 MAX_VIDEOS = 1
 
@@ -38,7 +42,7 @@ ALLOWED_VIDEO_TYPES = {
     "video/quicktime",
 }
 
-app = FastAPI(title="Pocket Mechanic API", version="0.5.0")
+app = FastAPI(title="Pocket Mechanic API", version="0.5.1")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -54,6 +58,11 @@ def safe_filename(filename: str | None) -> str:
     original = filename or "upload"
     clean = re.sub(r"[^A-Za-z0-9._-]+", "_", original).strip("._")
     return clean[:120] or "upload"
+
+
+@app.get("/health")
+def health() -> dict[str, Any]:
+    return {"status": "ok", "version": app.version, "photo_analysis_configured": bool(os.getenv("OPENAI_API_KEY"))}
 
 
 @app.post("/api/uploads")
@@ -130,6 +139,9 @@ async def upload_media(files: list[UploadFile] = File(...)) -> dict[str, Any]:
             }
         )
 
+    for record in uploaded:
+        UPLOADED_MEDIA[record["id"]] = record
+
     return {
         "count": len(uploaded),
         "files": uploaded,
@@ -161,6 +173,7 @@ class DiagnosisResponse(BaseModel):
     summary: str
     safety_message: str
     causes: list[Cause]
+    visual_analysis: dict[str, Any] | None = None
 
 
 class ProfileCreate(BaseModel):
@@ -398,6 +411,20 @@ def diagnose(req: DiagnosisRequest) -> DiagnosisResponse:
 @app.post("/api/diagnoses", response_model=DiagnosisResponse, status_code=201)
 def create_diagnosis(req: DiagnosisRequest) -> DiagnosisResponse:
     result = diagnose(req)
+    media = req.answers.get("media", [])
+    if isinstance(media, list) and media:
+        # Resolve server-issued records; never trust client-supplied file paths or MIME types.
+        records = [UPLOADED_MEDIA[item.get("id")] for item in media
+                   if isinstance(item, dict) and isinstance(item.get("id"), str)
+                   and item.get("id") in UPLOADED_MEDIA]
+        try:
+            result.visual_analysis = analyze_uploaded_images(records, req.category, req.symptom)
+            if len(records) != len(media):
+                result.visual_analysis["attachment_warning"] = "Some attachments expired or were not found. Upload them again."
+        except VisionUnavailableError:
+            result.visual_analysis = {"available": False, "reason": "Photo analysis is not configured on the server. Symptom diagnosis still works.", "analyzed_files": []}
+        except (RuntimeError, ValueError, OSError, TypeError):
+            result.visual_analysis = {"available": False, "reason": "Photo analysis could not finish. Try again or upload a clearer photo. Symptom diagnosis still works.", "analyzed_files": []}
     DIAGNOSES[result.id] = result
     return result
 

@@ -62,7 +62,7 @@ def build_guided_step(category,symptom,answers,causes):
     if answer(verification)=='resolved':
         return step('complete','Outcome verified by you','You report that the original issue is resolved. Keep your checks and repair notes; reopen this work if the symptom returns.','A successful retest is different from a suspected cause.',[],state='resolved')
     if answer(verification)=='persists':
-        return step('handoff','The original problem remains','Do not repeat part replacement. Review the saved evidence with a qualified technician; the current checks have not established a successful repair.','A failed retest means the original diagnosis or repair needs reassessment.',CHOICES[verification],state='needs_help')
+        return step(verification,'The original problem remains','Do not repeat part replacement. Review the saved evidence with a qualified technician; the current checks have not established a successful repair.','A failed retest means the original diagnosis or repair needs reassessment.',CHOICES[verification],state='needs_help')
     if answer(verification)=='not_done':
         return step(verification,'Retest when the work is complete','Complete only the repair supported by testing, then check the original symptom safely. If the work is beyond your tools or skills, get qualified help.','The case stays open until you report the result.')
     text=symptom.lower().replace('’',"'")

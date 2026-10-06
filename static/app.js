@@ -17,7 +17,7 @@ const HISTORY_KEY = 'pocket-mechanic-history-v4';
 const GARAGE_KEY = 'pocket-mechanic-garage-v4';
 
 function esc(v){return String(v ?? '').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));}
-function read(key){try{return JSON.parse(localStorage.getItem(key)||'[]')}catch{return[]}}
+function read(key){try{const value=JSON.parse(localStorage.getItem(key)||'[]');return Array.isArray(value)?value.filter(item=>item && typeof item==='object'):[]}catch{return[]}}
 function write(key,value){localStorage.setItem(key,JSON.stringify(value));}
 function showPage(name){$$('.page').forEach(p=>p.classList.toggle('active',p.id===`page-${name}`));$$('.bottom-nav button').forEach(b=>b.classList.toggle('active',b.dataset.page===name));window.scrollTo({top:0,behavior:'smooth'});if(name==='diagnose')openItemEditor();else closeItemEditor();}
 
@@ -29,7 +29,7 @@ function historyItems(){
   const items=read(HISTORY_KEY);
   let changed=false;
   items.forEach(item=>{if(!item.id){item.id=crypto.randomUUID();changed=true;}});
-  if(changed)write(HISTORY_KEY,items);
+  if(changed){try{write(HISTORY_KEY,items);}catch{}}
   return items;
 }
 function renderHistory(){
@@ -46,6 +46,7 @@ function renderHistory(){
 }
 function renderWorkControls(){
   $('#savedWorkControls')?.remove();
+  $('#workFindings')?.remove();
   const entry=historyItems().find(item=>item.id===activeWorkId);
   if(!entry)return;
   const controls=document.createElement('div');controls.id='savedWorkControls';controls.className='work-actions';
@@ -373,7 +374,8 @@ async function uploadSelectedMedia(){
 
   const response = await fetch('/api/uploads', {
     method: 'POST',
-    body: formData
+    body: formData,
+    signal: AbortSignal.timeout(90000)
   });
 
   if(!response.ok){
@@ -405,6 +407,7 @@ $('#videoInput').addEventListener('change', event => {
 
 $('#diagnosisForm').addEventListener('submit', async event => {
   event.preventDefault();
+  if($('#diagnoseButton').disabled)return;
 
   let currentItem = diagnosisItem();
   if(currentItem && $('#saveDiagnosisItem').checked){
@@ -447,7 +450,8 @@ button.disabled = true;
     const response = await fetch('/api/diagnoses', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify(payload)
+      body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(120000)
     });
 
     if(!response.ok){
@@ -485,7 +489,8 @@ button.disabled = true;
     if(previous)items.splice(items.findIndex(item=>item.id===previous.id),1);
     items.unshift(savedWork);
 
-    write(HISTORY_KEY, items.slice(0, 30));
+    let saved=true;
+    try{write(HISTORY_KEY, items.slice(0, 30));}catch{saved=false;}
     activeWorkId=savedWork.id;
     renderResult(data);
     renderHistory();
@@ -493,21 +498,23 @@ button.disabled = true;
     $('#status').textContent = uploadedMedia.length
       ? (data.visual_analysis?.available ? 'Diagnosis and photo inspection complete.' : 'Symptom diagnosis complete. Photos were not analyzed; see details above.')
       : projectMode ? "Project plan complete." : "Diagnosis complete.";
+    if(!saved)$('#status').textContent+=' Could not save history: browser storage is full. Your result is shown above.';
   }catch(error){
     if(revision !== diagnosisRevision) return;
     $('#status').textContent = `${projectMode ? "Could not build project plan" : "Could not run diagnosis"}: ${error.message}`;
   }finally{
-    button.disabled = false;
+    if(revision === diagnosisRevision)button.disabled = false;
   }
 });
 
 $('#obdForm').addEventListener('submit',async e=>{
   e.preventDefault();const code=$('#obdCode').value.trim().toUpperCase();const out=$('#obdResult');out.innerHTML='<p class="muted">Looking up code…</p>';
-  try{const res=await fetch(`/api/obd/${encodeURIComponent(code)}`);if(!res.ok)throw new Error('This code is not in the offline starter library yet.');const d=await res.json();out.innerHTML=`<article class="obd-card"><p class="eyebrow">${esc(d.system)}</p><h2>${esc(d.code)} — ${esc(d.title)}</h2><h3>First checks</h3><ol>${d.first_checks.map(x=>`<li>${esc(x)}</li>`).join('')}</ol></article>`;}catch(err){out.innerHTML=`<div class="safety">${esc(err.message)}</div>`;}
+  try{const res=await fetch(`/api/obd/${encodeURIComponent(code)}`,{signal:AbortSignal.timeout(10000)});if(!res.ok)throw new Error('This code is not in the offline starter library yet.');const d=await res.json();out.innerHTML=`<article class="obd-card"><p class="eyebrow">${esc(d.system)}</p><h2>${esc(d.code)} — ${esc(d.title)}</h2><h3>First checks</h3><ol>${d.first_checks.map(x=>`<li>${esc(x)}</li>`).join('')}</ol></article>`;}catch(err){out.innerHTML=`<div class="safety">${esc(err.message)}</div>`;}
 });
 
-async function connection(){try{const r=await fetch('/health');const d=await r.json();$('#connection').textContent=d.version ? 'Connected' : 'Connected';}catch{$('#connection').textContent='Offline';}}
+async function connection(){try{const r=await fetch('/health',{signal:AbortSignal.timeout(10000)});if(!r.ok)throw new Error('Unavailable');const d=await r.json();if(!d.version)throw new Error('Invalid health response');$('#connection').textContent='Connected';}catch{$('#connection').textContent='Offline';}}
 if('serviceWorker'in navigator)navigator.serviceWorker.register('/static/service-worker.js').catch(()=>{});
+window.addEventListener('online',connection);window.addEventListener('offline',()=>{$('#connection').textContent='Offline';});
 renderHistory();renderGarage();connection();
 
 /* POCKET_PROJECT_UI_V3 */

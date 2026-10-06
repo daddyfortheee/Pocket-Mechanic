@@ -49,6 +49,7 @@ async function boot(entries) {
 
   b.q('#savedWorkControls button').click();
   assert(b.read()[0].fixed_at);
+  assert.equal(b.w.document.querySelectorAll('#workFindings').length,1,'Fixed toggles must not duplicate findings');
   assert(b.q('#homeHistory').textContent.includes('Verified fixed by you'));
   assert(b.q('#fullHistory').textContent.includes('Verified fixed by you'));
   const persisted = b.read(); b.dom.window.close();
@@ -73,6 +74,9 @@ async function boot(entries) {
   b.q('#clearHistory').click();
   assert.equal(b.read().length,0);
   assert.equal(b.q('#savedWorkControls'),null);
+  b.dom.window.close();
+  b = await boot({corrupt:'history'});
+  assert.equal(b.q('#homeHistory').textContent,'No saved diagnoses yet.');
   b.dom.window.close();
   console.log('Recent work: reopen, restore context, retain steps, legacy entries, delete, fixed/reopen, persistence, and new saves passed.');
 })().catch(error=>{console.error(error);process.exit(1)});

@@ -42,3 +42,10 @@ def test_symptom_only_request_does_not_call_paid_image_service():
         assert response.status_code == 201
         assert response.json()['visual_analysis'] is None
         analyzer.assert_not_called()
+
+
+def test_failed_batch_removes_partial_uploads(tmp_path):
+    with patch('app.main.UPLOAD_DIR',tmp_path):
+        response=client.post('/api/uploads',files=[('files',('good.jpg',b'image','image/jpeg')),('files',('bad.exe',b'bad','application/octet-stream'))])
+        assert response.status_code==415
+        assert list(tmp_path.iterdir())==[]

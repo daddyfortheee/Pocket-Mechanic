@@ -24,7 +24,7 @@ def fetch_menu(menu: str, year: int, make: str, model: str, day: int) -> tuple[s
     request = Request(url, headers={"Accept": "application/xml", "User-Agent": "PocketGuru/1.0"})
     # A brief upstream failure must not force the user to abandon the picker.
     # Bound both attempts so the browser's 30-second deadline has room to spare.
-    for attempt, timeout in enumerate((8, 12)):
+    for attempt, timeout in enumerate((3, 4)):
         try:
             with urlopen(request, timeout=timeout) as response:
                 document = ElementTree.fromstring(response.read(2_000_000))
@@ -87,13 +87,20 @@ def motorcycle_models(year: int, make: str, day: int) -> tuple[tuple[str, ...], 
     # https://www.kawasaki.com/en-us/ownercenter/downloaddiagrampdf/144079?modelcode=KZ750-G1&modelyear=1980
     if year == 1980 and make.casefold() == "kawasaki":
         return ("KDX175-A1", "KZ440-A1", "KZ550-A1", "KZ550-C1", "KZ650-E1", "KZ750-G1"), "Kawasaki owner parts catalog (partial)"
+    historical = {
+        1988: ("Ninja 600R (ZX600-C1)", "Ninja 750R (ZX750-F2)", "Vulcan 88 SE (VN1500-B2)", "LTD (KZ305-B3)"),
+        1989: ("Ninja 600R (ZX600-C2)", "Ninja 750R (ZX750-F3)", "KLR650 (KL650-A3)", "Vulcan 88 SE (VN1500-B3)", "Eliminator (EL250-B3)", "454 LTD (EN450-A5)"),
+    }
+    # Manufacturer owner-center diagrams, recorded in docs/catalog-sources.md.
+    if make.casefold() == "kawasaki" and year in historical:
+        return tuple(sorted(historical[year])), "Kawasaki owner parts catalog (partial)"
     if year <= 1995:
         return (), "No verified historical catalog matches"
     url = ("https://vpic.nhtsa.dot.gov/api/vehicles/GetModelsForMakeYear/make/"
            + quote(make, safe="") + "/modelyear/" + str(year)
            + "/vehicletype/motorcycle?format=json")
     request = Request(url, headers={"Accept":"application/json", "User-Agent":"PocketGuru/1.0"})
-    with urlopen(request, timeout=12) as response:
+    with urlopen(request, timeout=4) as response:
         data = json.loads(response.read(2_000_000))
     motorcycle_names = {row["Model_Name"].strip().casefold() for row in data["Results"]
                         if isinstance(row.get("Model_Name"), str) and row["Model_Name"].strip()
@@ -101,7 +108,7 @@ def motorcycle_models(year: int, make: str, day: int) -> tuple[tuple[str, ...], 
     # vPIC can return models from other years even for a year query. Intersect
     # with year-tagged safety records instead of labeling those as verified.
     url = "https://api.nhtsa.gov/products/vehicle/models?" + urlencode({"modelYear":year,"make":make,"issueType":"r"})
-    with urlopen(Request(url, headers={"Accept":"application/json"}), timeout=8) as response:
+    with urlopen(Request(url, headers={"Accept":"application/json"}), timeout=4) as response:
         records = json.loads(response.read(2_000_000))["results"]
     return tuple(sorted({row["model"].strip() for row in records
                          if str(row.get("modelYear")) == str(year)

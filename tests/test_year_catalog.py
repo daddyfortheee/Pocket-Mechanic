@@ -43,3 +43,15 @@ def test_motorcycle_api_filters_unreliable_years_and_wrong_make():
         assert options==('NINJA ZX-10R',)
         assert 'year-specific' in source
     motorcycle_models.cache_clear()
+
+
+def test_screenshot_years_load_from_verified_catalog_without_network():
+    motorcycle_models.cache_clear()
+    with patch('app.vehicle_catalog.urlopen', side_effect=AssertionError('Historical lookup must be instant')):
+        for year in (1988,1989):
+            response=client.get('/api/vehicles/models',params={'category':'motorcycle','year':year,'make':'Kawasaki'})
+            assert response.status_code==200
+            choices=response.json()['options']
+            assert any('Ninja 600R' in choice for choice in choices)
+            assert not any('Ninja 400' in choice for choice in choices)
+            assert any('C1' in choice for choice in choices) if year==1988 else any('C2' in choice for choice in choices)

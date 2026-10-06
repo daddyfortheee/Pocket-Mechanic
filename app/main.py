@@ -43,7 +43,7 @@ ALLOWED_VIDEO_TYPES = {
     "video/quicktime",
 }
 
-app = FastAPI(title="Pocket Guru API", version="0.6.1")
+app = FastAPI(title="Pocket Guru API", version="0.6.2")
 app.include_router(vehicle_catalog_router)
 app.add_middleware(
     CORSMiddleware,
@@ -82,73 +82,83 @@ async def upload_media(files: list[UploadFile] = File(...)) -> dict[str, Any]:
     video_count = 0
     uploaded: list[dict[str, Any]] = []
 
-    for upload in files:
-        content_type = (upload.content_type or "").lower()
+    completed = False
+    try:
+        for upload in files:
+            content_type = (upload.content_type or "").lower()
 
-        if content_type in ALLOWED_IMAGE_TYPES:
-            image_count += 1
-            file_kind = "image"
-            size_limit = MAX_IMAGE_SIZE
+            if content_type in ALLOWED_IMAGE_TYPES:
+                image_count += 1
+                file_kind = "image"
+                size_limit = MAX_IMAGE_SIZE
 
-            if image_count > MAX_IMAGES:
+                if image_count > MAX_IMAGES:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Only {MAX_IMAGES} pictures may be uploaded.",
+                    )
+
+            elif content_type in ALLOWED_VIDEO_TYPES:
+                video_count += 1
+                file_kind = "video"
+                size_limit = MAX_VIDEO_SIZE
+
+                if video_count > MAX_VIDEOS:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Only {MAX_VIDEOS} video may be uploaded.",
+                    )
+
+            else:
                 raise HTTPException(
-                    status_code=400,
-                    detail=f"Only {MAX_IMAGES} pictures may be uploaded.",
+                    status_code=415,
+                    detail=f"{upload.filename or 'The selected file'} is not a supported picture or video.",
                 )
 
-        elif content_type in ALLOWED_VIDEO_TYPES:
-            video_count += 1
-            file_kind = "video"
-            size_limit = MAX_VIDEO_SIZE
+            contents = await upload.read(size_limit + 1)
+            await upload.close()
 
-            if video_count > MAX_VIDEOS:
+            if len(contents) > size_limit:
+                limit_mb = size_limit // (1024 * 1024)
                 raise HTTPException(
-                    status_code=400,
-                    detail=f"Only {MAX_VIDEOS} video may be uploaded.",
+                    status_code=413,
+                    detail=f"{upload.filename or 'The selected file'} exceeds the {limit_mb} MB limit.",
                 )
 
-        else:
-            raise HTTPException(
-                status_code=415,
-                detail=f"{upload.filename or 'The selected file'} is not a supported picture or video.",
+            media_id = str(uuid4())
+            cleaned_name = safe_filename(upload.filename)
+            extension = Path(cleaned_name).suffix.lower()
+            stored_name = f"{media_id}{extension}"
+            stored_path = UPLOAD_DIR / stored_name
+            stored_path.write_bytes(contents)
+
+            uploaded.append(
+                {
+                    "id": media_id,
+                    "kind": file_kind,
+                    "filename": cleaned_name,
+                    "content_type": content_type,
+                    "size_bytes": len(contents),
+                    "stored_name": stored_name,
+                }
             )
 
-        contents = await upload.read(size_limit + 1)
-        await upload.close()
+        for record in uploaded:
+            UPLOADED_MEDIA[record["id"]] = record
 
-        if len(contents) > size_limit:
-            limit_mb = size_limit // (1024 * 1024)
-            raise HTTPException(
-                status_code=413,
-                detail=f"{upload.filename or 'The selected file'} exceeds the {limit_mb} MB limit.",
-            )
-
-        media_id = str(uuid4())
-        cleaned_name = safe_filename(upload.filename)
-        extension = Path(cleaned_name).suffix.lower()
-        stored_name = f"{media_id}{extension}"
-        stored_path = UPLOAD_DIR / stored_name
-        stored_path.write_bytes(contents)
-
-        uploaded.append(
-            {
-                "id": media_id,
-                "kind": file_kind,
-                "filename": cleaned_name,
-                "content_type": content_type,
-                "size_bytes": len(contents),
-                "stored_name": stored_name,
-            }
-        )
-
-    for record in uploaded:
-        UPLOADED_MEDIA[record["id"]] = record
-
-    return {
-        "count": len(uploaded),
-        "files": uploaded,
-        "message": "Media uploaded successfully.",
-    }
+        completed = True
+        return {
+            "count": len(uploaded),
+            "files": uploaded,
+            "message": "Media uploaded successfully.",
+        }
+    finally:
+        for upload in files:
+            await upload.close()
+        if not completed:
+            for record in uploaded:
+                (UPLOAD_DIR / record["stored_name"]).unlink(missing_ok=True)
+                UPLOADED_MEDIA.pop(record["id"], None)
 
 
 class DiagnosisRequest(BaseModel):

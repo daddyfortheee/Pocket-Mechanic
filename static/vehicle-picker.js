@@ -122,6 +122,7 @@
     }
   }
   selects.forEach((select, i) => select.addEventListener('change', () => {
+    if(i===0)clearTimeout(timer);
     if (select.value === retry) {
       inputs[i].value = '';
       clearFrom(i + 1);

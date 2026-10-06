@@ -78,3 +78,9 @@ def test_cannot_test_leads_to_actionable_handoff_instead_of_endless_loop():
     r=run([record('start_behavior','no_crank'),record('battery_test','untested')])
     assert r['guided_step']['state']=='needs_help'
     assert 'capacity test' in r['guided_step']['instruction']
+
+
+def test_leaking_fuel_words_override_reported_success():
+    from app.safety_gate import urgent_hazard
+    assert urgent_hazard("Engine will not start; leaking fuel", {})["safety"] == "stop"
+    assert urgent_hazard("No leaking fuel observed", {}) is None

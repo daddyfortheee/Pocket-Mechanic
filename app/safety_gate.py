@@ -7,7 +7,7 @@ def urgent_hazard(symptom, answers):
     notes=[symptom]+([x for x in findings if isinstance(x,str)] if isinstance(findings,list) else [])
     for note in notes:
         text=note.lower()
-        for phrase in ('gas leak','smell gas','smell of gas','fuel leak','carbon monoxide alarm','outlet sparking','sparking outlet','smoke from outlet','brakes failed','brake pedal goes to the floor','no brakes'):
+        for phrase in ('gas leak','smell gas','smell of gas','fuel leak','leaking fuel','gas leaking','fuel is leaking','leaking gas','carbon monoxide alarm','outlet sparking','sparking outlet','smoke from outlet','brakes failed','brake pedal goes to the floor','no brakes'):
             for match in re.finditer(re.escape(phrase),text):
                 prefix=text[max(0,match.start()-18):match.start()]
                 if phrase!='no brakes' and re.search(r'\b(no|not|without)\s+(?:a |any )?$',prefix):

@@ -10,6 +10,8 @@
   const retry = '__retry__';
   const inputs = ids.map(id => document.getElementById(id));
   const generations = [0, 0, 0];
+  const requests = new Map();
+  const cache = new Map();
   const selects = inputs.map((input, i) => {
     const select = document.createElement('select');
     select.id = input.id + 'Picker';
@@ -89,15 +91,30 @@
     if (i > 0) params.set('make', inputs[0].value.trim());
     if (i > 1) params.set('model', inputs[1].value.trim());
     try {
-      const response = await fetch('/api/vehicles/' + fields[i] + '?' + params,
-        {signal: AbortSignal.timeout(30000)});
-      if (!response.ok) throw new Error('catalog unavailable');
-      const data = await response.json();
+      const key = '/api/vehicles/' + fields[i] + '?' + params;
+      let data = cache.get(key);
+      if (!data) {
+        // Reuse identical lookups; obsolete responses can never replace current choices.
+        let pending = requests.get(key);
+        if (!pending) {
+          pending = (async () => {
+            const response = await fetch(key, {signal: AbortSignal.timeout(10000)});
+            if (!response.ok) throw new Error('catalog unavailable');
+            const result = await response.json();
+            if (!Array.isArray(result.options)) throw new Error('invalid catalog response');
+            // Empty coverage is not cached: a newly added model must be discoverable.
+            if (result.options.length) { if (cache.size >= 100) cache.delete(cache.keys().next().value); cache.set(key, result); }
+            return result;
+          })().finally(() => requests.delete(key));
+          requests.set(key, pending);
+        }
+        data = await pending;
+      }
       if (generation !== generations[i] || !supported()) return;
-      setOptions(i, data.options, data.options.length ? 'Choose ' + label(i) : 'No catalog matches');
+      setOptions(i, data.options, data.options.length ? 'Choose ' + label(i) : 'No verified models listed yet');
       help.textContent = data.options.length
         ? (yearModels() ? 'Models for ' + year.value + ' ' + inputs[0].value + ' from ' + data.source + '. Catalog coverage may be incomplete; enter an unlisted model manually.' : 'Choose your year, make, model, then engine / transmission. Not listed? Use manual entry.')
-        : 'No catalog matches for these details. Use “Not listed? Enter manually.”';
+        : 'Catalog coverage is incomplete for this year and make. Use “Not listed? Enter manually.”';
     } catch {
       if (generation !== generations[i] || !supported()) return;
       setOptions(i, [], 'Could not load choices', true);

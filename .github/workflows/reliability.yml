@@ -1,0 +1,25 @@
+name: Reliability checks
+on:
+  push:
+  pull_request:
+  schedule:
+    - cron: '0 13 * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: pip install -r requirements.txt
+      - run: python -m pytest -q
+      - run: npm install --prefix /tmp/pocket-tests jsdom@26.1.0
+      - run: |
+          for test in tests/frontend_*.cjs; do NODE_PATH=/tmp/pocket-tests/node_modules node "$test"; done

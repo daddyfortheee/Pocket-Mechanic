@@ -54,6 +54,10 @@ def build_diagnostic_causes(
     answer_text = " ".join(str(value) for key, value in answers.items() if key in evidence_keys)
     text = f"{symptom} {answer_text}".lower().replace("’", "'").replace("‘", "'")
 
+    if category in {'motorcycle', 'equipment'} and answers.get('starting_behavior') in {'no_crank', 'slow_crank'}:
+        # Shared starting-circuit checks, without assuming this item's nominal voltage or fuel type.
+        battery_findings=[note for note in answers.get('findings',[]) if isinstance(note,str) and note.startswith('Battery ') and 'test after charging' in note]
+        return build_diagnostic_causes('automotive','Engine does not crank when trying to start.',{'findings':battery_findings})[:1]
     causes: list[dict[str, Any]] = []
 
     def add(cause: dict[str, Any]) -> None:
@@ -71,6 +75,11 @@ def build_diagnostic_causes(
             if re.search(r"\bbattery\b.{0,40}\b(?:failed (?:a |the )?(?:load |conductance )?test|tested bad|did(?:n't| not) pass)\b", normalized):
                 battery_passed = False
         starting_text = text
+        behavior = answers.get('starting_behavior')
+        if behavior in {'no_crank','slow_crank'}: starting_text = "no crank when trying to start"
+        if behavior == 'cranks': starting_text = "cranks but will not start"
+        if behavior == 'stalls': starting_text = "starts then stalls"
+
         for note in evidence[1:]:
             normalized = note.lower().replace("’", "'")
             if contains(normalized, "cranks but", "turns over but", "crank no start"):
@@ -129,7 +138,7 @@ def build_diagnostic_causes(
                 "high",
             ))
         elif contains(
-            text,
+            starting_text,
             "cranks but",
             "turns over but",
             "crank no start",

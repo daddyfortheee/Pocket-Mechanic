@@ -15,6 +15,7 @@ from pydantic import BaseModel, Field
 from app.diagnosis_engine import build_diagnostic_causes, fallback_cause
 from app.project_planner import build_project_plan
 from app.safety_gate import urgent_hazard
+from app.guided_diagnosis import with_evidence, build_guided_step
 from app.vision_engine import analyze_uploaded_images, VisionUnavailableError
 from app.vehicle_catalog import router as vehicle_catalog_router
 from app.guest_security import COOKIE, TTL, issue_token, verify_token, allow_request
@@ -45,7 +46,7 @@ ALLOWED_VIDEO_TYPES = {
     "video/quicktime",
 }
 
-app = FastAPI(title="Pocket Guru API", version="0.6.4")
+app = FastAPI(title="Pocket Guru API", version="0.7.0")
 app.include_router(vehicle_catalog_router)
 app.add_middleware(
     CORSMiddleware,
@@ -220,6 +221,7 @@ class DiagnosisResponse(BaseModel):
     safety_message: str
     causes: list[Cause]
     visual_analysis: dict[str, Any] | None = None
+    guided_step: dict[str, Any] | None = None
 
 
 class ProfileCreate(BaseModel):
@@ -462,7 +464,9 @@ def diagnose(req: DiagnosisRequest) -> DiagnosisResponse:
 
 @app.post("/api/diagnoses", response_model=DiagnosisResponse, status_code=201)
 def create_diagnosis(req: DiagnosisRequest, request: Request) -> DiagnosisResponse:
+    req = req.model_copy(update={"answers": with_evidence(req.answers)})
     result = diagnose(req)
+    result.guided_step = build_guided_step(req.category, req.symptom, req.answers, result.causes)
     media = req.answers.get("media", [])
     if isinstance(media, list) and media:
         # Resolve server-issued records; never trust client-supplied file paths or MIME types.

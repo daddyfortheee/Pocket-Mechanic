@@ -20,7 +20,7 @@ Decision: beta, not ready for paid public launch. Selected model: free core offe
 
 Dependency audit: upgraded FastAPI/Starlette, Pydantic, multipart parser and pytest; pinned the resolved runtime dependency set, separated test dependencies, and added scheduled dependency scanning. Validate audit results against the current vulnerability feed.
 
-Validation: 41 backend checks and five DOM-based frontend suites. Live catalog release verified in a real browser; deployment health and privacy must be rechecked after the hardening release. These checks do not establish exhaustive correctness or calibrated diagnostic accuracy.
+Validation: 52 backend checks and six DOM-based frontend suites. Live catalog release verified in a real browser; deployment health and privacy must be rechecked after the hardening release. These checks do not establish exhaustive correctness or calibrated diagnostic accuracy.
 
 ## Paid launch gates
 
@@ -49,3 +49,9 @@ Use hosted checkout and customer portal. Store entitlements server-side under ve
 4. Select subscription price/benefit and connect billing in test mode.
 5. Complete checkout/lifecycle tests, published disclosures/support and mobile/load checks.
 6. Release a small beta to target users; fix measured failures before paid public launch.
+
+## Guided problem-solving release
+
+Diagnosis now leads with one actionable check, captures the result and evidence, and selects the next step. Starting problems branch between no-crank and crank-no-start; passed battery tests lead to cable/ground testing before starter diagnosis. A reported fault requires confirmation and a repair retest. A failed retest remains open; success is clearly a user-reported outcome. Reopening clears the previous completion state. Other symptoms use recorded observations to advance the available checklists, confirm a finding or prepare a targeted handoff. Prior photo evidence is retained without re-uploading it on each follow-up. Changing item identity resets structured tests.
+
+This is an initial predefined workflow, not universal model-specific diagnostic coverage. Expanding and validating targeted branches remains a product release gate.

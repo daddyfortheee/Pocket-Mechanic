@@ -50,8 +50,8 @@ async function boot(entries) {
   b.q('#savedWorkControls button').click();
   assert(b.read()[0].fixed_at);
   assert.equal(b.w.document.querySelectorAll('#workFindings').length,1,'Fixed toggles must not duplicate findings');
-  assert(b.q('#homeHistory').textContent.includes('Verified fixed by you'));
-  assert(b.q('#fullHistory').textContent.includes('Verified fixed by you'));
+  assert(b.q('#homeHistory').textContent.includes('Marked fixed by you'));
+  assert(b.q('#fullHistory').textContent.includes('Marked fixed by you'));
   const persisted = b.read(); b.dom.window.close();
   b = await boot(persisted);
   b.q('#fullHistory [data-open-work]').click();

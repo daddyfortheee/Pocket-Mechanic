@@ -32,9 +32,10 @@ function historyItems(){
   if(changed){try{write(HISTORY_KEY,items);}catch{}}
   return items;
 }
+function fixedStatus(entry){return entry.result?.guided_step?.state==='resolved'?'Retest passed — reported by you':'Marked fixed by you';}
 function renderHistory(){
   const items=historyItems();
-  const html=items.length?items.map(x=>`<div class="history-item"><strong>${esc(x.category)}</strong>${x.fixed_at?'<span class="badge work-fixed">Verified fixed by you</span>':''}<div>${esc(x.symptom)}</div><small class="muted">${esc(x.title)}</small><div class="work-actions"><button type="button" data-open-work="${esc(x.id)}" aria-label="Open saved work: ${esc(x.symptom)}">Open work</button><button type="button" data-fixed-work="${esc(x.id)}">${x.fixed_at?'Reopen issue':'Mark fixed'}</button><button type="button" data-delete-work="${esc(x.id)}" aria-label="Delete saved work: ${esc(x.symptom)}">Delete</button></div></div>`).join(''):'<p class="muted">No saved diagnoses yet.</p>';
+  const html=items.length?items.map(x=>`<div class="history-item"><strong>${esc(x.category)}</strong>${x.fixed_at?'<span class="badge work-fixed">'+esc(fixedStatus(x))+'</span>':''}<div>${esc(x.symptom)}</div><small class="muted">${esc(x.title)}</small><div class="work-actions"><button type="button" data-open-work="${esc(x.id)}" aria-label="Open saved work: ${esc(x.symptom)}">Open work</button><button type="button" data-fixed-work="${esc(x.id)}">${x.fixed_at?'Reopen issue':'Mark fixed'}</button><button type="button" data-delete-work="${esc(x.id)}" aria-label="Delete saved work: ${esc(x.symptom)}">Delete</button></div></div>`).join(''):'<p class="muted">No saved diagnoses yet.</p>';
   $('#homeHistory').innerHTML=html; $('#fullHistory').innerHTML=html;
   $$('[data-open-work]').forEach(button=>button.onclick=()=>openSavedWork(button.dataset.openWork));
   $$('[data-fixed-work]').forEach(button=>button.onclick=()=>toggleWorkFixed(button.dataset.fixedWork));
@@ -44,13 +45,50 @@ function renderHistory(){
     renderHistory();
   });
 }
+function sameGuidedContext(work,category,symptom,item){
+  if(!work || work.category!==category || work.symptom!==symptom)return false;
+  return ['year','make','model','engine','serial'].every(key=>String(work.item?.[key]||'').trim()===String(item?.[key]||'').trim());
+}
+function renderGuidedWork(entry){
+  $('#guidedWork')?.remove();
+  const step=entry?.result?.guided_step;
+  if(!step || !Array.isArray(step.choices))return;
+  const section=document.createElement('section');section.id='guidedWork';section.className='guided-work';
+  const stateLabels={investigating:'Narrowing the problem',resolved:'Retest passed — reported by you',needs_help:'Bring the evidence to qualified help',stop:'Stop work'};
+  section.innerHTML=`<p class="eyebrow">${esc(stateLabels[step.state] || 'Your next step')}</p><h3>${esc(step.title)}</h3><p>${esc(step.instruction)}</p><p class="muted"><strong>Why this step:</strong> ${esc(step.why)}</p><p class="muted">${(entry.guided_answers || []).length} recorded observations</p>`;
+  if(step.choices.length){
+    section.insertAdjacentHTML('beforeend',`<fieldset class="guided-choices"><legend>What was the result?</legend>${step.choices.map(choice=>`<label><input type="radio" name="guidedAnswer" value="${esc(choice.value)}" />${esc(choice.label)}</label>`).join('')}</fieldset><label for="guidedDetail">Test readings, findings, or repair and retest details<textarea id="guidedDetail" maxlength="1000" placeholder="Record what you actually checked, measured, or repaired."></textarea></label><button type="button" id="submitGuidedResult" class="primary">Use this result</button><p id="guidedStatus" role="status"></p>`);
+    section.querySelector('#submitGuidedResult').onclick=()=>{
+      if($('#diagnoseButton').disabled)return;
+      const answer=section.querySelector('input[name="guidedAnswer"]:checked')?.value;
+      const detail=section.querySelector('#guidedDetail').value.trim();
+      const status=section.querySelector('#guidedStatus');
+      if(!answer){status.textContent='Choose the result you observed.';return;}
+      const needsDetail=(step.requires_detail || answer==='resolved' || answer==='fault' || answer.endsWith('_fault')) && !['help','unsafe','unsure'].includes(answer);
+      if(needsDetail && !detail){status.textContent='Record the check, measurement, or repair before continuing.';return;}
+      const items=historyItems(),index=items.findIndex(x=>x.id===entry.id);if(index<0)return;
+      items[index].guided_answers=[...(items[index].guided_answers || []),{question_id:step.question_id,question_title:step.title,answer,answer_label:step.choices.find(c=>c.value===answer)?.label || answer,detail,created_at:new Date().toISOString()}].slice(-40);
+      items[index].fixed_at=null;
+      try{write(HISTORY_KEY,items);}catch{status.textContent='Could not save this result. Download a backup and free browser storage before continuing.';return;}
+      // Existing media was already inspected; new selected files still upload normally.
+      $('#diagnosisForm').requestSubmit();
+    };
+  }
+  if(entry.guided_answers?.length){
+    const notes=document.createElement('details');notes.className='guided-evidence';
+    notes.innerHTML='<summary>Your recorded checks</summary><ol>'+entry.guided_answers.map(x=>'<li>'+esc(x.question_title || 'Recorded check')+': '+esc(x.answer_label || x.answer.replaceAll('_',' '))+(x.detail?' — '+esc(x.detail):'')+'</li>').join('')+'</ol>';
+    section.append(notes);
+  }
+  const full=$('#result .diagnosis-details');if(full)full.before(section);else $('#result').prepend(section);
+}
 function renderWorkControls(){
   $('#savedWorkControls')?.remove();
   $('#workFindings')?.remove();
   const entry=historyItems().find(item=>item.id===activeWorkId);
+  renderGuidedWork(entry);
   if(!entry)return;
   const controls=document.createElement('div');controls.id='savedWorkControls';controls.className='work-actions';
-  const status=document.createElement('span');status.textContent=entry.fixed_at?'Verified fixed by you':'Repair in progress';
+  const status=document.createElement('span');status.textContent=entry.fixed_at?fixedStatus(entry):'Repair in progress';
   const button=document.createElement('button');button.type='button';button.textContent=entry.fixed_at?'Reopen issue':'Mark fixed';
   button.onclick=()=>toggleWorkFixed(entry.id);
   controls.append(status,button);$('#result').append(controls);
@@ -75,6 +113,11 @@ function renderWorkControls(){
 }
 function toggleWorkFixed(id){
   const items=historyItems();const entry=items.find(item=>item.id===id);if(!entry)return;
+  if(entry.fixed_at && entry.result?.guided_step?.state==='resolved'){
+    const q=entry.category==='diy'?'project_verify':'repair_retest';
+    entry.guided_answers=(entry.guided_answers || []).filter(x=>!['repair_retest','project_verify'].includes(x.question_id));
+    entry.result.guided_step={question_id:q,title:'Recheck the original outcome',instruction:'You reopened this work. Record what was repaired and whether the original issue remains. Do not repeat unsafe tests.',why:'An earlier successful retest does not prove a returning issue is resolved.',state:'investigating',choices:[{value:'resolved',label:'Repair completed; original symptom is gone'},{value:'persists',label:'Original problem remains'},{value:'not_done',label:'Work is not complete'}]};
+  }
   entry.fixed_at=entry.fixed_at?null:new Date().toISOString();
   write(HISTORY_KEY,items);renderHistory();renderWorkControls();
 }
@@ -231,12 +274,12 @@ function renderVisualAnalysis(analysis){
   if(!analysis) return '';
   if(!analysis.available) return `<section class="cause"><h3>Photos were not analyzed</h3><p>${esc(analysis.reason)}</p>${analysis.attachment_warning ? `<p>${esc(analysis.attachment_warning)}</p>` : ''}</section>`;
   const list = (title, items) => Array.isArray(items) && items.length ? `<h4>${title}</h4><ul>${items.map(item => `<li>${esc(item)}</li>`).join('')}</ul>` : '';
-  return `<section class="cause"><h3>Photo inspection</h3><p class="muted">Preliminary visual evidence. Confirm the fault with tests before ordering parts.</p><p><strong>Brand:</strong> ${esc(analysis.brand)}<br><strong>Model:</strong> ${esc(analysis.model)}<br><strong>Serial / VIN:</strong> ${esc(analysis.serial_or_vin)}</p>${list('Visible label text',analysis.visible_text)}${list('Visible components',analysis.identified_parts)}${list('Visible abnormalities',analysis.visible_problems)}<p>${esc(analysis.likely_relevance)}</p>${list('Next photos and tests',analysis.follow_up)}${analysis.safety_warning && !['None','Unknown'].includes(analysis.safety_warning) ? `<div class="safety">${esc(analysis.safety_warning)}</div>` : ''}<p class="muted">Analyzed: ${(analysis.analyzed_files || []).map(esc).join(', ')}</p>${list('Not analyzed',analysis.skipped_files)}${analysis.attachment_warning ? `<p>${esc(analysis.attachment_warning)}</p>` : ''}</section>`;
+  return `<section class="cause"><h3>${analysis.from_saved_work ? 'Earlier photo inspection' : 'Photo inspection'}</h3><p class="muted">Preliminary visual evidence. Confirm the fault with tests before ordering parts.</p><p><strong>Brand:</strong> ${esc(analysis.brand)}<br><strong>Model:</strong> ${esc(analysis.model)}<br><strong>Serial / VIN:</strong> ${esc(analysis.serial_or_vin)}</p>${list('Visible label text',analysis.visible_text)}${list('Visible components',analysis.identified_parts)}${list('Visible abnormalities',analysis.visible_problems)}<p>${esc(analysis.likely_relevance)}</p>${list('Next photos and tests',analysis.follow_up)}${analysis.safety_warning && !['None','Unknown'].includes(analysis.safety_warning) ? `<div class="safety">${esc(analysis.safety_warning)}</div>` : ''}<p class="muted">Analyzed: ${(analysis.analyzed_files || []).map(esc).join(', ')}</p>${list('Not analyzed',analysis.skipped_files)}${analysis.attachment_warning ? `<p>${esc(analysis.attachment_warning)}</p>` : ''}</section>`;
 }
 
 function validResult(data){return data && Array.isArray(data.causes) && data.causes.length>0 && data.causes.every(c=>c && typeof c.title==='string' && Array.isArray(c.checks) && c.checks.every(x=>typeof x==='string') && Array.isArray(c.repair) && c.repair.every(x=>typeof x==='string'));}
 function renderResult(data){
-  const r=$('#result');r.classList.remove('hidden');r.innerHTML=`<h2>Your next steps</h2><p class="muted">Suggested checks based on your description. Confirm the fault with measurements and the manufacturer’s service instructions before replacing parts.</p><p>${esc(data.summary)}</p>${renderVisualAnalysis(data.visual_analysis)}<div class="safety">${esc(data.safety_message)}</div>${data.causes.map(c=>`<article class="cause"><h3>${esc(c.title)} </h3><p>${esc(c.why)}</p><h4>Checks</h4><ol>${c.checks.map(v=>`<li>${esc(v)}</li>`).join('')}</ol><h4>Repair path</h4><ul>${c.repair.map(v=>`<li>${esc(v)}</li>`).join('')}</ul></article>`).join('')}`;r.scrollIntoView({behavior:'smooth',block:'start'});
+  const r=$('#result');r.classList.remove('hidden');r.innerHTML=`<h2>Let’s work through this</h2><p class="muted">Suggested checks based on your description. Confirm the fault with measurements and the manufacturer’s service instructions before replacing parts.</p><p>${esc(data.summary)}</p>${renderVisualAnalysis(data.visual_analysis)}<div class="safety">${esc(data.safety_message)}</div><details class="diagnosis-details"><summary>Possible causes and full checklist</summary>${data.causes.map(c=>`<article class="cause"><h3>${esc(c.title)} </h3><p>${esc(c.why)}</p><h4>Checks</h4><ol>${c.checks.map(v=>`<li>${esc(v)}</li>`).join('')}</ol><h4>Repair path</h4><ul>${c.repair.map(v=>`<li>${esc(v)}</li>`).join('')}</ul></article>`).join('')}</details>`;r.scrollIntoView({behavior:'smooth',block:'start'});
   renderWorkControls();
 }
 
@@ -443,7 +486,8 @@ button.disabled = true;
       answers: {
         media: uploadedMedia,
         item: currentItem,
-        findings: (continuedWork?.findings || []).map(note=>note.text)
+        findings: (continuedWork?.findings || []).map(note=>note.text),
+        guided_answers: sameGuidedContext(continuedWork,currentCategory,currentSymptom,currentItem) ? (continuedWork.guided_answers || []) : []
       },
       profile_id: currentItem?.id || null
     };
@@ -481,16 +525,19 @@ button.disabled = true;
       title: top.title,
       confidence: top.confidence,
       created_at: data.created_at,
-      media_count: uploadedMedia.length,
+      media_count: uploadedMedia.length || previous?.media_count || 0,
       item: currentItem ? {...currentItem} : null,
       result: data,
-      fixed_at: null,
+      fixed_at: data.guided_step?.state==='resolved' ? new Date().toISOString() : null,
+      guided_answers: sameGuidedContext(continuedWork,currentCategory,currentSymptom,currentItem) ? (previous?.guided_answers || []) : [],
       findings: previous?.findings || [],
       previous_results: [...(previous?.previous_results || []),...(previous?.result?[previous.result]:[])].slice(-10)
     };
     if(previous)items.splice(items.findIndex(item=>item.id===previous.id),1);
     items.unshift(savedWork);
 
+    if(!data.visual_analysis && previous?.result?.visual_analysis){data.visual_analysis={...previous.result.visual_analysis,from_saved_work:true};}
+    selectedMedia.forEach(item=>URL.revokeObjectURL(item.url));selectedMedia.splice(0);renderMediaPreview();
     let saved=true;
     try{write(HISTORY_KEY, items.slice(0, 30));}catch{saved=false;}
     activeWorkId=savedWork.id;
@@ -499,7 +546,7 @@ button.disabled = true;
 
     $('#status').textContent = uploadedMedia.length
       ? (data.visual_analysis?.available ? 'Diagnosis and photo inspection complete.' : 'Symptom diagnosis complete. Photos were not analyzed; see details above.')
-      : projectMode ? "Project plan complete." : "Diagnosis complete.";
+      : projectMode ? "Project plan ready. Work through the guided steps." : data.guided_step?.state==='resolved' ? "Retest recorded. You report the issue is resolved." : "Next check ready. Record your result to narrow the problem.";
     if(!saved)$('#status').textContent+=' Could not save history: browser storage is full. Your result is shown above.';
   }catch(error){
     if(revision !== diagnosisRevision) return;

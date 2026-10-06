@@ -84,3 +84,17 @@ def test_leaking_fuel_words_override_reported_success():
     from app.safety_gate import urgent_hazard
     assert urgent_hazard("Engine will not start; leaking fuel", {})["safety"] == "stop"
     assert urgent_hazard("No leaking fuel observed", {}) is None
+
+
+def test_dsc_complaint_has_targeted_path_and_not_transmission_guess():
+    symptom="DSC OFF stays lit, button will not turn it on. I drive daily and cannot do a burnout."
+    first=run(symptom=symptom)
+    assert first['guided_step']['question_id']=='dsc_lights'
+    assert 'DSC / traction-control' in first['causes'][0]['title']
+    second=run([record('dsc_lights','off_only')],symptom=symptom)
+    assert second['guided_step']['question_id']=='dsc_scan'
+    assert 'ABS / DSC' in second['guided_step']['instruction']
+    assert run([record('dsc_lights','brake')],symptom=symptom)['guided_step']['state']=='stop'
+    rows=[record('dsc_lights','off_only'),record('dsc_scan','codes')]
+    assert run(rows,symptom=symptom)['guided_step']['question_id']=='check_dsc_fault_confirm'
+    assert run(rows+[record('check_dsc_fault_confirm','confirmed','Fault isolated by technician')],symptom=symptom)['guided_step']['question_id']=='repair_retest'

@@ -26,8 +26,8 @@ async function harness({configured=true,user=null,storage={},scriptFails=false}=
   const append=w.document.body.appendChild.bind(w.document.body);
   w.document.body.appendChild=node=>{
     const result=append(node);
-    if(node.tagName==='SCRIPT'&&node.src.includes('/static/app.js'))queueMicrotask(()=>{
-      if(scriptFails)node.onerror();else{w.eval(fs.readFileSync(path.join(root,'app.js'),'utf8'));node.onload();}
+    if(node.tagName==='SCRIPT'&&/\/static\/(app|vehicle-picker)\.js/.test(node.src))queueMicrotask(()=>{
+      if(scriptFails)node.onerror();else{w.eval(fs.readFileSync(path.join(root,node.src.includes('vehicle-picker')?'vehicle-picker.js':'app.js'),'utf8'));node.onload();}
     });
     return result;
   };

@@ -2,7 +2,7 @@
   'use strict';
   const q = selector => document.querySelector(selector);
   const nativeFetch = window.fetch.bind(window);
-  let mode = 'signup', pendingEmail = '', purpose = 'signup', loaded = false, ready = false;
+  let mode = 'signup', pendingEmail = '', purpose = 'signup', loaded = false, pickerLoaded = false, ready = false;
   let resendAt = 0, busy = false;
   const status = (text, error=false) => {q('#accountStatus').textContent=text;q('#accountStatus').classList.toggle('error',error);};
   function setBusy(value){
@@ -51,8 +51,12 @@
     q('#signOut').setAttribute('aria-label',`Sign out of ${user.email}`);
     q('#accountPassword').value='';q('#newPassword').value='';q('#verificationCode').value='';
     if(!loaded){
-      await new Promise((resolve,reject)=>{const script=document.createElement('script');script.src='/static/app.js?v=12';script.onload=resolve;script.onerror=()=>reject(new Error('Could not load Pocket Guru. Refresh and try again.'));document.body.appendChild(script);});
+      await new Promise((resolve,reject)=>{const script=document.createElement('script');script.src='/static/app.js?v=17';script.onload=resolve;script.onerror=()=>reject(new Error('Could not load Pocket Guru. Refresh and try again.'));document.body.appendChild(script);});
       loaded=true;
+    }
+    if(!pickerLoaded){
+      await new Promise((resolve,reject)=>{const script=document.createElement('script');script.src='/static/vehicle-picker.js?v=14';script.onload=resolve;script.onerror=()=>reject(new Error('Could not load vehicle choices. Refresh and try again.'));document.body.appendChild(script);});
+      pickerLoaded=true;
     }
     q('#authGate').hidden=true;q('#appContent').hidden=false;q('#headerAccount').hidden=false;q('#connection').hidden=true;
     window.scrollTo({top:0});

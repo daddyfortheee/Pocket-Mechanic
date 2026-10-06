@@ -21,17 +21,86 @@ const GARAGE_KEY = 'pocket-guru-garage-v1:' + window.pocketGuruUser.id;
 function esc(v){return String(v ?? '').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));}
 function read(key){try{return JSON.parse(localStorage.getItem(key)||'[]')}catch{return[]}}
 function write(key,value){localStorage.setItem(key,JSON.stringify(value));}
-function showPage(name){$$('.page').forEach(p=>p.classList.toggle('active',p.id===`page-${name}`));$$('.bottom-nav button').forEach(b=>b.classList.toggle('active',b.dataset.page===name));window.scrollTo({top:0,behavior:'smooth'});}
+function showPage(name){$$('.page').forEach(p=>p.classList.toggle('active',p.id===`page-${name}`));$$('.bottom-nav button').forEach(b=>b.classList.toggle('active',b.dataset.page===name));window.scrollTo({top:0,behavior:'smooth'});if(name==='diagnose')openItemEditor();else closeItemEditor();}
 
 $$('[data-page]').forEach(b=>b.addEventListener('click',()=>showPage(b.dataset.page)));
 $$('[data-diagnose]').forEach(b=>b.addEventListener('click',()=>{$('#category').value=b.dataset.diagnose;$('#category').dispatchEvent(new Event('change'));showPage('diagnose');}));
 
-function renderHistory(){
+let activeWorkId = null;
+function historyItems(){
   const items=read(HISTORY_KEY);
-  const html=items.length?items.map(x=>`<div class="history-item"><strong>${esc(x.category)}</strong><div>${esc(x.symptom)}</div><small class="muted">${esc(x.title)} · ${Math.round(x.confidence*100)}%</small></div>`).join(''):'<p class="muted">No saved diagnoses yet.</p>';
-  $('#homeHistory').innerHTML=html; $('#fullHistory').innerHTML=html;
+  let changed=false;
+  items.forEach(item=>{if(!item.id){item.id=crypto.randomUUID();changed=true;}});
+  if(changed)write(HISTORY_KEY,items);
+  return items;
 }
-$('#clearHistory').addEventListener('click',()=>{write(HISTORY_KEY,[]);renderHistory();});
+function renderHistory(){
+  const items=historyItems();
+  const html=items.length?items.map(x=>`<div class="history-item"><strong>${esc(x.category)}</strong>${x.fixed_at?'<span class="badge work-fixed">Verified fixed by you</span>':''}<div>${esc(x.symptom)}</div><small class="muted">${esc(x.title)} · ${Math.round(x.confidence*100)}%</small><div class="work-actions"><button type="button" data-open-work="${esc(x.id)}" aria-label="Open saved work: ${esc(x.symptom)}">Open work</button><button type="button" data-fixed-work="${esc(x.id)}">${x.fixed_at?'Reopen issue':'Mark fixed'}</button><button type="button" data-delete-work="${esc(x.id)}" aria-label="Delete saved work: ${esc(x.symptom)}">Delete</button></div></div>`).join(''):'<p class="muted">No saved diagnoses yet.</p>';
+  $('#homeHistory').innerHTML=html; $('#fullHistory').innerHTML=html;
+  $$('[data-open-work]').forEach(button=>button.onclick=()=>openSavedWork(button.dataset.openWork));
+  $$('[data-fixed-work]').forEach(button=>button.onclick=()=>toggleWorkFixed(button.dataset.fixedWork));
+  $$('[data-delete-work]').forEach(button=>button.onclick=()=>{
+    write(HISTORY_KEY,historyItems().filter(item=>item.id!==button.dataset.deleteWork));
+    if(activeWorkId===button.dataset.deleteWork){activeWorkId=null;renderWorkControls();}
+    renderHistory();
+  });
+}
+function renderWorkControls(){
+  $('#savedWorkControls')?.remove();
+  const entry=historyItems().find(item=>item.id===activeWorkId);
+  if(!entry)return;
+  const controls=document.createElement('div');controls.id='savedWorkControls';controls.className='work-actions';
+  const status=document.createElement('span');status.textContent=entry.fixed_at?'Verified fixed by you':'Repair in progress';
+  const button=document.createElement('button');button.type='button';button.textContent=entry.fixed_at?'Reopen issue':'Mark fixed';
+  button.onclick=()=>toggleWorkFixed(entry.id);
+  controls.append(status,button);$('#result').append(controls);
+  const section=document.createElement('section');section.className='cause';section.id='workFindings';
+  section.innerHTML='<h3>Add findings</h3><p>Tell us what you tested, the readings, and what is still happening.</p><label for="newFinding">What did you find?</label><textarea id="newFinding" maxlength="1000" placeholder="Battery passed a load test after charging, but it still only clicks."></textarea><div class="work-actions"><button type="button" id="continueDiagnosis">Continue diagnosis</button></div><p id="findingStatus" role="status"></p><div id="findingHistory"></div>';
+  const notes=entry.findings || [];
+  section.querySelector('#findingHistory').innerHTML=notes.length?'<h4>Your findings</h4><ol>'+notes.map(note=>'<li>'+esc(note.text)+'</li>').join('')+'</ol>':'';
+  section.querySelector('#continueDiagnosis').onclick=()=>{
+    if($('#diagnoseButton').disabled)return;
+    const text=section.querySelector('#newFinding').value.trim();
+    if(!text){section.querySelector('#findingStatus').textContent='Enter what you tested or found first.';return;}
+    entry.findings=[...notes,{text,created_at:new Date().toISOString()}].slice(-20);
+    entry.fixed_at=null;
+    const items=historyItems();const index=items.findIndex(item=>item.id===entry.id);if(index<0)return;
+    items[index]=entry;
+    try{write(HISTORY_KEY,items);}catch{section.querySelector('#findingStatus').textContent='Could not save the finding. Your browser storage may be full.';return;}
+    renderHistory();
+    // Reuse the existing form and item context; append evidence without replacing the original complaint.
+    $('#diagnosisForm').requestSubmit();
+  };
+  $('#result').append(section);
+}
+function toggleWorkFixed(id){
+  const items=historyItems();const entry=items.find(item=>item.id===id);if(!entry)return;
+  entry.fixed_at=entry.fixed_at?null:new Date().toISOString();
+  write(HISTORY_KEY,items);renderHistory();renderWorkControls();
+}
+function openSavedWork(id){
+  const entry=historyItems().find(item=>item.id===id);if(!entry)return;
+  $('#category').value=entry.category;$('#category').dispatchEvent(new Event('change'));showPage('diagnose');
+  const item=entry.item;
+  if(item && entry.category!=='diy'){
+    const saved=read(GARAGE_KEY).find(x=>x.id===item.id && x.category===entry.category);
+    $('#profileSelect').value=saved?saved.id:'';
+    for(const [field,key] of [['garageName','name'],['garageYear','year'],['garageMake','make'],['garageModel','model'],['garageEngine','engine'],['garageNotes','notes']]) $('#'+field).value=item[key] || '';
+    garageForm.dispatchEvent(new Event('pocket:item-loaded'));
+  }
+  $('#symptom').value=entry.symptom || '';activeWorkId=entry.id;
+  if(entry.result && Array.isArray(entry.result.causes)){
+    renderResult(entry.result);
+    $('#status').textContent='Saved work reopened. Review your steps or update the description and run it again.';
+  }else{
+    $('#status').textContent='Earlier work reopened. This entry saved only the description; run it again to rebuild the steps.';
+    $('#result').classList.remove('hidden');$('#result').textContent='Previous steps were not saved for this older entry.';
+    renderWorkControls();$('#symptom').focus();
+  }
+  if(entry.media_count)$('#status').textContent+=' Reattach photos or video if you run it again.';
+}
+$('#clearHistory').addEventListener('click',()=>{write(HISTORY_KEY,[]);activeWorkId=null;renderWorkControls();renderHistory();});
 
 function renderGarage(){
   const items=read(GARAGE_KEY); $('#garageCount').textContent=items.length;
@@ -40,12 +109,13 @@ function renderGarage(){
   $('#profileSelect').innerHTML='<option value="">Choose an item (optional)</option>'+items.map(x=>`<option value="${esc(x.id)}">${esc(x.name)}</option>`).join('');
   syncDiagnosisItems(); $('#profileSelect').value=selectedId;
   $$('[data-delete]').forEach(b=>b.onclick=()=>{write(GARAGE_KEY,items.filter(x=>x.id!==b.dataset.delete));renderGarage();});
-  $$('[data-use]').forEach(b=>b.onclick=()=>{const x=items.find(i=>i.id===b.dataset.use);if(x){$('#category').value=x.category;syncDiagnosisItems();$('#profileSelect').value=x.id;$('#category').dispatchEvent(new Event('change'));$('#profileSelect').value=x.id;showPage('diagnose');}});
+  $$('[data-use]').forEach(b=>b.onclick=()=>{const x=items.find(i=>i.id===b.dataset.use);if(x){$('#category').value=x.category;syncDiagnosisItems();$('#profileSelect').value=x.id;$('#category').dispatchEvent(new Event('change'));$('#profileSelect').value=x.id;loadSelectedItem();showPage('diagnose');}});
 }
 
 let addingFromDiagnosis = false;
 let diagnosisRevision = 0;
 function resetDiagnosis(){
+  activeWorkId = null;
   diagnosisRevision += 1;
   $('#symptom').value = '';
   $('#status').textContent = '';
@@ -59,7 +129,7 @@ function resetDiagnosis(){
 }
 
 const garageForm = $('#garageForm');
-const garageFormHome = garageForm.parentElement;
+const itemFields = $('#itemFields');
 function updateItemFields(){
   const type = $('#garageCategory').value;
   const vehicle = ['automotive','motorcycle'].includes(type);
@@ -68,59 +138,92 @@ function updateItemFields(){
   const fields = [
     ['garageMake', vehicle ? 'Make' : 'Brand', vehicle ? 'Make (optional)' : 'Brand (optional)'],
     ['garageModel', 'Model', vehicle ? 'Model (optional)' : 'Model number (optional)'],
-    ['garageEngine', vehicle ? 'Engine' : type === 'appliance' ? 'Appliance type / details' : 'System / equipment type', vehicle ? 'Engine (optional)' : 'Type / details (optional)']
+    ['garageEngine', vehicle ? 'Engine / transmission' : type === 'appliance' ? 'Appliance type / details' : 'System / equipment type', vehicle ? 'Engine (optional)' : 'Type / details (optional)']
   ];
   fields.forEach(([id,label,placeholder])=>{
     const input = $('#'+id);
     input.parentElement.firstChild.textContent = label;
     input.placeholder = placeholder;
   });
-  $('#garageName').placeholder = vehicle ? 'Vehicle name' : 'Item name';
+  $('#garageName').placeholder = vehicle ? 'Vehicle name (optional)' : 'Item name (optional)';
+}
+function resetItemEditor(){
+  ['garageName','garageYear','garageMake','garageModel','garageEngine','garageNotes'].forEach(id=>$('#'+id).value='');
+  $('#saveDiagnosisItem').checked = false;
+  garageForm.dispatchEvent(new Event('pocket:item-reset'));
 }
 function syncDiagnosisItems(){
   const category = $('#category').value;
   const previous = $('#profileSelect').value;
-  $('#profileSelect').innerHTML = '<option value="">Choose an item (optional)</option>' + read(GARAGE_KEY).filter(x=>x.category===category).map(x=>`<option value="${esc(x.id)}">${esc(x.name)}</option>`).join('');
+  $('#profileSelect').innerHTML = '<option value="">Enter a new item below</option>' + read(GARAGE_KEY).filter(x=>x.category===category).map(x=>`<option value="${esc(x.id)}">${esc(x.name)}</option>`).join('');
   $('#profileSelect').value = previous;
-  $('#addDiagnosisItem').textContent = ['automotive','motorcycle'].includes(category) ? 'Add vehicle' : category==='appliance' ? 'Add appliance' : 'Add item';
+  $('#addDiagnosisItem').textContent = ['automotive','motorcycle'].includes(category) ? 'Start a new vehicle' : 'Start a new item';
   $('#addDiagnosisItem').hidden = category==='diy';
+  $('#profileSelect').parentElement.hidden = category==='diy';
+  $('#saveDiagnosisItemLabel').hidden = category==='diy';
 }
 function closeItemEditor(){
-  garageFormHome.appendChild(garageForm);
+  if(addingFromDiagnosis) $('#garageNotes').value = $('#symptom').value;
+  garageForm.appendChild(itemFields);
   $('#diagnosisItemEditor').hidden = true;
+  $('#garageCategory').parentElement.hidden = false;
+  $('#garageNotes').parentElement.hidden = false;
+  $('#garageName').required = true;
   addingFromDiagnosis = false;
 }
-$('#addDiagnosisItem').addEventListener('click',()=>{
-  resetDiagnosis();
-  $('#profileSelect').value = '';
-  garageForm.reset();
+function openItemEditor(){
+  if($('#category').value==='diy'){closeItemEditor();return;}
   $('#garageCategory').value = $('#category').value;
   updateItemFields();
-  addingFromDiagnosis = true;
-  $('#diagnosisItemEditor').appendChild(garageForm);
+  $('#diagnosisItemEditor').appendChild(itemFields);
   $('#diagnosisItemEditor').hidden = false;
-  $('#diagnosisItemEditor').scrollIntoView({behavior:'smooth',block:'start'});
-  $('#garageName').focus({preventScroll:true});
+  $('#garageCategory').parentElement.hidden = true;
+  $('#garageNotes').parentElement.hidden = true;
+  $('#garageName').required = false;
+  addingFromDiagnosis = true;
+}
+function loadSelectedItem(){
+  const item = read(GARAGE_KEY).find(x=>x.id===$('#profileSelect').value);
+  resetItemEditor();
+  if(item){
+    for(const [id,key] of [['garageName','name'],['garageYear','year'],['garageMake','make'],['garageModel','model'],['garageEngine','engine'],['garageNotes','notes']]) $('#'+id).value = item[key] || '';
+    $('#garageCategory').value = item.category;
+    $('#symptom').value = item.notes || '';
+    garageForm.dispatchEvent(new Event('pocket:item-loaded'));
+  }
+  openItemEditor();
+}
+function diagnosisItem(){
+  if($('#category').value==='diy') return null;
+  const item = {category:$('#category').value,year:$('#garageYear').disabled?'':$('#garageYear').value,make:$('#garageMake').value.trim(),model:$('#garageModel').value.trim(),engine:$('#garageEngine').value.trim(),notes:$('#symptom').value.trim()};
+  item.name = $('#garageName').value.trim() || [item.year,item.make,item.model].filter(Boolean).join(' ') || 'My ' + item.category + ' item';
+  const saved = $('#profileSelect').value;
+  if(saved) item.id = saved;
+  return item;
+}
+function saveItem(item){
+  const items=read(GARAGE_KEY);
+  item.id = item.id || (crypto.randomUUID?crypto.randomUUID():String(Date.now()));
+  const existing=items.findIndex(x=>x.id===item.id);
+  if(existing>=0) items[existing]=item;else items.unshift(item);
+  try{write(GARAGE_KEY,items);}catch{alert('Could not save this item. Your browser storage may be full.');return null;}
+  renderGarage();
+  return item;
+}
+$('#addDiagnosisItem').addEventListener('click',()=>{
+  resetDiagnosis();$('#profileSelect').value='';resetItemEditor();openItemEditor();
 });
 $('#garageCategory').addEventListener('change',updateItemFields);
-$('#category').addEventListener('change',()=>{resetDiagnosis();closeItemEditor();syncDiagnosisItems();});
-$('#profileSelect').addEventListener('change',resetDiagnosis);
-$$('[data-page]').forEach(b=>b.addEventListener('click',closeItemEditor));
-$$('[data-diagnose]').forEach(b=>b.addEventListener('click',()=>{closeItemEditor();syncDiagnosisItems();}));
-const cancelItem = document.createElement('button');
-cancelItem.type='button';cancelItem.textContent='Cancel';
-cancelItem.addEventListener('click',closeItemEditor);$('#itemEditorActions').appendChild(cancelItem);
+$('#category').addEventListener('change',()=>{
+  resetDiagnosis();$('#garageCategory').value=$('#category').value;resetItemEditor();syncDiagnosisItems();
+  if($('#page-diagnose').classList.contains('active'))openItemEditor();
+});
+$('#profileSelect').addEventListener('change',()=>{resetDiagnosis();loadSelectedItem();});
 garageForm.addEventListener('submit',e=>{
   e.preventDefault();
-  e.stopPropagation();
-  const items=read(GARAGE_KEY);
-  const item={id:crypto.randomUUID?crypto.randomUUID():String(Date.now()),name:$('#garageName').value.trim(),category:$('#garageCategory').value,year:$('#garageYear').disabled?'':$('#garageYear').value,make:$('#garageMake').value.trim(),model:$('#garageModel').value.trim(),engine:$('#garageEngine').value.trim(),notes:$('#garageNotes').value.trim()};
+  const item={name:$('#garageName').value.trim(),category:$('#garageCategory').value,year:$('#garageYear').disabled?'':$('#garageYear').value,make:$('#garageMake').value.trim(),model:$('#garageModel').value.trim(),engine:$('#garageEngine').value.trim(),notes:$('#garageNotes').value.trim()};
   if(!item.name){$('#garageName').focus();return;}
-  items.unshift(item);
-  try{write(GARAGE_KEY,items);}catch{alert('Could not save this item. Your browser storage may be full.');return;}
-  const returnToDiagnosis = addingFromDiagnosis;
-  closeItemEditor();garageForm.reset();updateItemFields();renderGarage();
-  if(returnToDiagnosis){resetDiagnosis();$('#category').value=item.category;syncDiagnosisItems();$('#profileSelect').value=item.id;$('#status').textContent = `${item.name} saved to My Garage. Start a new diagnosis below.`;$('#diagnosisForm').scrollIntoView({behavior:'smooth',block:'start'});}
+  if(saveItem(item)){resetItemEditor();updateItemFields();}
 });
 updateItemFields();
 syncDiagnosisItems();
@@ -134,6 +237,7 @@ function renderVisualAnalysis(analysis){
 
 function renderResult(data){
   const r=$('#result');r.classList.remove('hidden');r.innerHTML=`<h2>Your next steps</h2><p>${esc(data.summary)}</p>${renderVisualAnalysis(data.visual_analysis)}<div class="safety">${esc(data.safety_message)}</div>${data.causes.map(c=>`<article class="cause"><h3>${esc(c.title)} <span class="confidence">${Math.round(c.confidence*100)}%</span></h3><p>${esc(c.why)}</p><h4>Checks</h4><ol>${c.checks.map(v=>`<li>${esc(v)}</li>`).join('')}</ol><h4>Repair path</h4><ul>${c.repair.map(v=>`<li>${esc(v)}</li>`).join('')}</ul></article>`).join('')}`;r.scrollIntoView({behavior:'smooth',block:'start'});
+  renderWorkControls();
 }
 
 
@@ -304,7 +408,17 @@ $('#videoInput').addEventListener('change', event => {
 $('#diagnosisForm').addEventListener('submit', async event => {
   event.preventDefault();
 
+  let currentItem = diagnosisItem();
+  if(currentItem && $('#saveDiagnosisItem').checked){
+    currentItem=saveItem(currentItem);
+    if(!currentItem)return;
+    $('#profileSelect').value=currentItem.id;
+    $('#saveDiagnosisItem').checked=false;
+  }
+  const currentSymptom=$('#symptom').value;
+  const currentCategory=$('#category').value;
   const revision = diagnosisRevision;
+  const continuedWork=historyItems().find(item=>item.id===activeWorkId);
   const button = $('#diagnoseButton');
   
   const projectMode = isProjectMode();
@@ -322,13 +436,14 @@ button.disabled = true;
     $('#status').textContent = uploadedMedia.length ? 'Inspecting photos and analyzing symptoms…' : 'Analyzing symptoms…';
 
     const payload = {
-      category: $('#category').value,
-      symptom: $('#symptom').value,
+      category: currentCategory,
+      symptom: currentSymptom,
       answers: {
         media: uploadedMedia,
-        item: read(GARAGE_KEY).find(x=>x.id === $('#profileSelect').value) || null
+        item: currentItem,
+        findings: (continuedWork?.findings || []).map(note=>note.text)
       },
-      profile_id: $('#profileSelect').value || null
+      profile_id: currentItem?.id || null
     };
 
     const response = await fetch('/api/diagnoses', {
@@ -350,21 +465,31 @@ button.disabled = true;
 
     const data = await response.json();
     if(revision !== diagnosisRevision) return;
-    renderResult(data);
 
     const top = data.causes[0];
     const items = read(HISTORY_KEY);
 
-    items.unshift({
+    const previous=continuedWork ? items.find(item=>item.id===continuedWork.id) : null;
+    const savedWork={
+      id: previous?.id || data.id,
       category: data.category,
       symptom: data.symptom,
       title: top.title,
       confidence: top.confidence,
       created_at: data.created_at,
-      media_count: uploadedMedia.length
-    });
+      media_count: uploadedMedia.length,
+      item: currentItem ? {...currentItem} : null,
+      result: data,
+      fixed_at: null,
+      findings: previous?.findings || [],
+      previous_results: [...(previous?.previous_results || []),...(previous?.result?[previous.result]:[])].slice(-10)
+    };
+    if(previous)items.splice(items.findIndex(item=>item.id===previous.id),1);
+    items.unshift(savedWork);
 
     write(HISTORY_KEY, items.slice(0, 30));
+    activeWorkId=savedWork.id;
+    renderResult(data);
     renderHistory();
 
     $('#status').textContent = uploadedMedia.length

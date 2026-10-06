@@ -15,6 +15,7 @@ from app.diagnosis_engine import build_diagnostic_causes, fallback_cause
 from app.project_planner import build_project_plan
 from app.vision_engine import analyze_uploaded_images, VisionUnavailableError
 from app.accounts import router as accounts_router, current_user, check_origin, configured
+from app.vehicle_catalog import router as vehicle_catalog_router
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 STATIC_DIR = BASE_DIR / "static"
@@ -44,6 +45,7 @@ ALLOWED_VIDEO_TYPES = {
 
 app = FastAPI(title="Pocket Guru API", version="0.7.0")
 app.include_router(accounts_router)
+app.include_router(vehicle_catalog_router)
 
 
 @app.middleware("http")
@@ -366,6 +368,7 @@ def diagnose(req: DiagnosisRequest) -> DiagnosisResponse:
             fallback_cause(
                 category=req.category,
                 media_count=media_count,
+                answers=req.answers,
             )
         ]
 

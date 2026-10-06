@@ -2,6 +2,8 @@
 from hashlib import sha256
 
 CHOICES = {
+    'dsc_lights': [('off_only','DSC OFF only, steady'),('both','DSC OFF and traction / ABS warning'),('flashing','DSC OFF flashes'),('brake','Red brake warning or abnormal braking'),('unsure','I cannot identify the lights')],
+    'dsc_scan': [('codes','ABS / DSC codes retrieved'),('none','ABS / DSC scan completed; no codes'),('engine_only','Only engine codes were checked'),('help','I need a scanner or qualified help')],
     'start_behavior': [('no_crank','Clicks or does not turn over'),('slow_crank','Turns over slowly'),('cranks','Turns over normally but will not run'),('stalls','Starts, then stalls'),('unsure','I cannot tell')],
     'battery_test': [('passed','Charged and passed a load / conductance test'),('failed','Failed testing after charging'),('untested','Not tested yet'),('unsafe','Damaged, leaking, hot, or unsafe')],
     'connection_test': [('passed','Cable / ground tests passed'),('fault','A cable or ground fault was measured'),('help','I cannot perform this test safely')],
@@ -56,7 +58,7 @@ def build_guided_step(category,symptom,answers,causes):
     records=evidence(answers)
     latest={x['question_id']:x for x in records}
     answer=lambda q: latest.get(q,{}).get('answer')
-    if any(c.safety=='stop' for c in causes) or any(r['answer']=='unsafe' for r in records):
+    if any(c.safety=='stop' for c in causes) or any(r['answer']=='unsafe' for r in records) or latest.get('dsc_lights',{}).get('answer')=='brake':
         return step('stop','Make it safe first','Stop use and follow the safety warning. Do not perform further live tests. Get qualified help.','Safety takes priority over narrowing the fault.',[],state='stop')
     verification='project_verify' if category=='diy' else 'repair_retest'
     if answer(verification)=='resolved':
@@ -66,6 +68,23 @@ def build_guided_step(category,symptom,answers,causes):
     if answer(verification)=='not_done':
         return step(verification,'Retest when the work is complete','Complete only the repair supported by testing, then check the original symptom safely. If the work is beyond your tools or skills, get qualified help.','The case stays open until you report the result.')
     text=symptom.lower().replace('’',"'")
+    if category=='automotive' and any(x in text for x in ('traction control','dsc','stability control')):
+        lights=answer('dsc_lights')
+        if lights=='brake':
+            return step('stop','Check the braking hazard first','Stop driving if braking is abnormal. Arrange qualified inspection of the brake warning before further tests.','A red brake warning requires assessment before ordinary DSC troubleshooting.',[],state='stop')
+        if not lights or lights=='unsure':
+            return step('dsc_lights','Identify the DSC and brake indicators','While safely parked, identify which indicators stay on after startup: DSC OFF, the skidding-car / TCS warning, ABS, or the red brake warning. Record whether DSC OFF is steady or flashing and whether pressing its button changes it.','A disabled setting, initialization issue, and a system fault require different checks.')
+        scanned=answer('dsc_scan')
+        item=answers.get('item',{})
+        rx8=isinstance(item,dict) and str(item.get('year'))=='2004' and str(item.get('make','')).lower()=='mazda' and str(item.get('model','')).lower().replace('-','').replace(' ','')=='rx8'
+        note=''
+        if rx8 and lights=='flashing':
+            note=' For a 2004 Mazda RX-8, the owner manual (5-22) describes DSC initialization after battery disconnection when DSC OFF flashes and TCS/DSC illuminates. Check whether that exact condition applies with a qualified person; a steady light is not proof of that condition.'
+        if not scanned or scanned in {'engine_only','help'}:
+            return step('dsc_scan','Check the ABS / DSC system, not just engine codes','Use a scanner that explicitly supports this vehicle’s ABS / DSC module. Save the exact codes before clearing anything. If the button cannot clear a steady DSC OFF light, request system diagnosis; do not assume a transmission fault or a failed switch.'+note,'Driving normally does not establish that stability control is working. Burnouts are not a diagnostic test.',state='needs_help' if scanned else 'investigating')
+        if answer('check_dsc_fault_confirm')=='confirmed':
+            return step('repair_retest','Verify the DSC repair','After the confirmed fault is corrected, have the warning lights and normal DSC operation checked according to the manufacturer procedure. Do not use a burnout as a retest.','The recorded repair still needs an outcome check.')
+        return step('check_dsc_fault_confirm','Use the warning and scan evidence to isolate the fault','Record the exact ABS / DSC codes, which lights stay on, and button response. Have the relevant manufacturer diagnostic procedure used to confirm the cause before replacing a sensor, switch, or module. A scan with no codes does not prove DSC operation.','The scan narrows the next test; it does not by itself prove a failed part.',[('confirmed','Diagnostic tests confirmed the fault'),('inconclusive','The cause is still uncertain'),('help','I need qualified help')],requires_detail=True)
     starting=category in {'automotive','motorcycle','equipment'} and any(x in text for x in ('start','crank','turn over','turns over'))
     if starting:
         behavior=answer('start_behavior')

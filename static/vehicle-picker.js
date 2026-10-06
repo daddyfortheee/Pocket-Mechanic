@@ -132,6 +132,10 @@
     clearFrom(i + 1);
     inputs[i].value = select.value === manual ? '' : select.value;
     inputs[i].hidden = select.value !== manual;
+    if(category.value==='appliance' && i===1 && !inputs[2].value){
+      const types={GFW550SSNWW:'Washer',GDT645SYNFS:'Dishwasher',DVE50R5400V:'Dryer',WF45R6100AW:'Washer',WED4815EW:'Dryer',WTW5000DW:'Washer',MER6600FZ:'Range',MEDC465HW:'Dryer',FGF316DSA:'Range',FFCD2413US:'Dishwasher',ELFE7637AT:'Dryer',ELFW7637AT:'Washer',DLE3400W:'Dryer',WM4000HWA:'Washer',SHEM63W55N:'Dishwasher',NTW4516FW:'Washer',NED4655EW:'Dryer',KDTM404KPS:'Dishwasher'};
+      inputs[2].value=types[select.value]||'';
+    }
     if (select.value === manual) inputs[i].focus();
     else if (i < 2) load(i + 1);
   }));

@@ -7,15 +7,17 @@ import re
 from typing import Any, Literal
 from uuid import uuid4
 
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import FastAPI, File, HTTPException, UploadFile, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from app.diagnosis_engine import build_diagnostic_causes, fallback_cause
 from app.project_planner import build_project_plan
+from app.safety_gate import urgent_hazard
 from app.vision_engine import analyze_uploaded_images, VisionUnavailableError
 from app.vehicle_catalog import router as vehicle_catalog_router
+from app.guest_security import COOKIE, TTL, issue_token, verify_token, allow_request
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 STATIC_DIR = BASE_DIR / "static"
@@ -43,7 +45,7 @@ ALLOWED_VIDEO_TYPES = {
     "video/quicktime",
 }
 
-app = FastAPI(title="Pocket Guru API", version="0.6.2")
+app = FastAPI(title="Pocket Guru API", version="0.6.3")
 app.include_router(vehicle_catalog_router)
 app.add_middleware(
     CORSMiddleware,
@@ -52,6 +54,37 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Guest records are private to a signed browser session, not public shared history.
+OWNERS: dict[str, str] = {}
+
+@app.middleware("http")
+async def private_guest_session(request: Request, call_next):
+    token = request.cookies.get(COOKIE)
+    fresh = not verify_token(token)
+    if fresh:
+        token = issue_token()
+    request.state.owner = token
+    if request.url.path.startswith('/static/') and any(marker in request.url.path for marker in ('.backup', 'before-', 'assist-backup')):
+        return JSONResponse({'detail':'Not found'},status_code=404)
+    if request.method == 'POST' and request.url.path in {'/api/diagnoses','/api/uploads'}:
+        origin = request.headers.get('origin')
+        if origin and origin.rstrip('/') != str(request.base_url).rstrip('/'):
+            return JSONResponse({'detail':'Use this app from its own website.'},status_code=403)
+        if not allow_request(token, request.url.path, 30, 600):
+            return JSONResponse({'detail':'Too many requests. Please wait before trying again.'},status_code=429,headers={'Retry-After':'600','Cache-Control':'no-store'})
+    response = await call_next(request)
+    if request.url.path.startswith('/api/'):
+        response.headers['Cache-Control'] = 'no-store'
+        if fresh:
+            response.set_cookie(COOKIE, token, max_age=TTL, httponly=True,
+                                secure=request.url.scheme == 'https', samesite='lax')
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['Referrer-Policy'] = 'same-origin'
+    response.headers['X-Frame-Options'] = 'DENY'
+    response.headers['Content-Security-Policy'] = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+    return response
+
 
 Category = Literal["automotive", "motorcycle", "appliance", "home", "equipment", "diy"]
 
@@ -68,7 +101,7 @@ def health() -> dict[str, Any]:
 
 
 @app.post("/api/uploads")
-async def upload_media(files: list[UploadFile] = File(...)) -> dict[str, Any]:
+async def upload_media(request: Request, files: list[UploadFile] = File(...)) -> dict[str, Any]:
     if not files:
         raise HTTPException(status_code=400, detail="No files were selected.")
 
@@ -145,6 +178,7 @@ async def upload_media(files: list[UploadFile] = File(...)) -> dict[str, Any]:
 
         for record in uploaded:
             UPLOADED_MEDIA[record["id"]] = record
+            OWNERS[record["id"]] = request.state.owner
 
         completed = True
         return {
@@ -330,6 +364,11 @@ def diagnose(req: DiagnosisRequest) -> DiagnosisResponse:
     media_count = len(media) if isinstance(media, list) else 0
 
 
+    hazard = urgent_hazard(req.symptom, req.answers)
+    if hazard:
+        return DiagnosisResponse(id=str(uuid4()), created_at=datetime.now(timezone.utc).isoformat(),
+            category=req.category, symptom=req.symptom, summary="Stop use until the reported hazard is made safe.",
+            safety_message="STOP WORK. Move to a safe location and get qualified help.", causes=[Cause(**hazard)])
     if req.category == "diy":
         plan = build_project_plan(
             description=req.symptom,
@@ -422,14 +461,20 @@ def diagnose(req: DiagnosisRequest) -> DiagnosisResponse:
 
 
 @app.post("/api/diagnoses", response_model=DiagnosisResponse, status_code=201)
-def create_diagnosis(req: DiagnosisRequest) -> DiagnosisResponse:
+def create_diagnosis(req: DiagnosisRequest, request: Request) -> DiagnosisResponse:
     result = diagnose(req)
     media = req.answers.get("media", [])
     if isinstance(media, list) and media:
         # Resolve server-issued records; never trust client-supplied file paths or MIME types.
         records = [UPLOADED_MEDIA[item.get("id")] for item in media
                    if isinstance(item, dict) and isinstance(item.get("id"), str)
-                   and item.get("id") in UPLOADED_MEDIA]
+                   and item.get("id") in UPLOADED_MEDIA
+                   and OWNERS.get(item.get("id")) == request.state.owner]
+        if not allow_request(request.state.owner, 'photo-analysis', 6, 3600) or not allow_request('__service__', 'photo-analysis', 60, 3600):
+            result.visual_analysis = {"available":False, "reason":"Photo inspection limit reached. Try later; symptom checks are still available.", "analyzed_files":[]}
+            DIAGNOSES[result.id] = result
+            OWNERS[result.id] = request.state.owner
+            return result
         try:
             result.visual_analysis = analyze_uploaded_images(records, req.category, req.symptom)
             if len(records) != len(media):
@@ -439,34 +484,37 @@ def create_diagnosis(req: DiagnosisRequest) -> DiagnosisResponse:
         except (RuntimeError, ValueError, OSError, TypeError):
             result.visual_analysis = {"available": False, "reason": "Photo analysis could not finish. Try again or upload a clearer photo. Symptom diagnosis still works.", "analyzed_files": []}
     DIAGNOSES[result.id] = result
+    OWNERS[result.id] = request.state.owner
     return result
 
 
 @app.get("/api/diagnoses")
-def list_diagnoses() -> list[DiagnosisResponse]:
-    return list(reversed(list(DIAGNOSES.values())))
+def list_diagnoses(request: Request) -> list[DiagnosisResponse]:
+    return [record for record in reversed(list(DIAGNOSES.values()))
+            if OWNERS.get(record.id) == request.state.owner]
 
 
 @app.get("/api/diagnoses/{diagnosis_id}", response_model=DiagnosisResponse)
-def get_diagnosis(diagnosis_id: str) -> DiagnosisResponse:
+def get_diagnosis(diagnosis_id: str, request: Request) -> DiagnosisResponse:
     result = DIAGNOSES.get(diagnosis_id)
-    if result is None:
+    if result is None or OWNERS.get(diagnosis_id) != request.state.owner:
         raise HTTPException(status_code=404, detail="Diagnosis not found")
     return result
 
 
 @app.post("/api/profiles", status_code=201)
-def create_profile(profile: ProfileCreate) -> dict[str, Any]:
+def create_profile(profile: ProfileCreate, request: Request) -> dict[str, Any]:
     profile_id = str(uuid4())
     data = profile.dict() if hasattr(profile, "dict") else profile.model_dump()
     record = {"id": profile_id, **data, "created_at": datetime.now(timezone.utc).isoformat()}
     PROFILES[profile_id] = record
+    OWNERS[profile_id] = request.state.owner
     return record
 
 
 @app.get("/api/profiles")
-def list_profiles() -> list[dict[str, Any]]:
-    return list(PROFILES.values())
+def list_profiles(request: Request) -> list[dict[str, Any]]:
+    return [record for key, record in PROFILES.items() if OWNERS.get(key) == request.state.owner]
 
 
 @app.get("/api/obd/{code}")

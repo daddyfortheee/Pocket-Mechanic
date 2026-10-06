@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#102e31" />
   <link rel="manifest" href="/static/manifest.json" />
-  <link rel="stylesheet" href="/static/styles.css?v=20" />
+  <link rel="stylesheet" href="/static/styles.css?v=21" />
   <title>Pocket Guru</title>
 </head>
 <body>
@@ -85,7 +85,7 @@
                 id="cameraInput"
                 class="file-input"
                 type="file"
-                accept="image/*"
+                accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
                 capture="environment"
                 multiple
               />
@@ -110,7 +110,7 @@
                 id="videoInput"
                 class="file-input"
                 type="file"
-                accept="video/*"
+                accept="video/mp4,video/webm,video/quicktime"
                 capture="environment"
               />
             </label>
@@ -139,6 +139,7 @@
           <label>Year<input id="garageYear" type="number" min="1900" max="2100" placeholder="Year (optional)" /></label>
           <label>Make<input id="garageMake" placeholder="Chevrolet" /></label>
           <label>Model<input id="garageModel" placeholder="K2500" /></label>
+          <label>Serial / VIN<input id="garageSerial" maxlength="100" placeholder="Serial number or VIN (optional)" /></label>
           <label>Engine / details<input id="garageEngine" placeholder="5.7L V8" /></label>
           <label class="wide">Notes<textarea id="garageNotes" placeholder="Mileage, model number, modifications, known issues..."></textarea></label>
           </div>
@@ -169,6 +170,7 @@
 
     <section id="page-history" class="page">
       <div class="page-title"><button class="back" data-page="home">←</button><div><p class="eyebrow">YOUR RECENT WORK</p><h1>Repair History</h1></div></div>
+      <section class="card"><h2>Keep your work</h2><p class="muted">Garage and history are saved in this browser. Clearing browser data removes them. Download a private backup to keep a copy or move your work to another device. Photos are not included.</p><button type="button" id="exportWork">Download backup</button><label>Restore backup<input type="file" id="importWork" accept="application/json,.json" /></label><p id="backupStatus" role="status"></p></section>
       <section class="card"><div id="fullHistory" class="history"></div></section>
     </section>
   </main>
@@ -181,8 +183,9 @@
     <button data-page="history"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11a9 9 0 1 1 2 7 M3 4v7h7 M12 7v6l4 2"/></svg></span>History</button>
   </nav>
 
-  <script src="/static/app.js?v=20"></script>
-  <script src="/static/vehicle-picker.js?v=20"></script>
+  <script src="/static/app.js?v=21"></script>
+  <script src="/static/vehicle-picker.js?v=21"></script>
+  <script src="/static/data-backup.js?v=21"></script>
 
 <script>
 /* POCKET_INLINE_PROJECT_UI */

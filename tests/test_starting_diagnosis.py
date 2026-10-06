@@ -87,3 +87,10 @@ def test_unproven_battery_condition_is_not_treated_as_passed_test():
         'findings': ["Battery didn't pass the test."],
     })
     assert result['causes'][0]['title'].startswith('Battery power too low')
+
+
+def test_vehicle_name_and_attachment_names_do_not_create_symptoms():
+    from app.diagnosis_engine import build_diagnostic_causes
+    result=build_diagnostic_causes('automotive','Only clicks when trying to start',{'item':{'name':'Misfire overheating brake truck'},'media':[{'filename':'battery_dead.jpg'}]})
+    assert len(result)==1
+    assert 'No-crank' in result[0]['title']

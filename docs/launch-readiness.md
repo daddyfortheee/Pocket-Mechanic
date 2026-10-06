@@ -1,0 +1,49 @@
+# Pocket Guru launch audit — October 6, 2026
+
+Decision: beta, not ready for paid public launch. Selected model: free core offering plus a recurring subscription. No subscription price or payment account has been selected. Revenue is not guaranteed by technical readiness.
+
+## Verified and repaired
+
+| Area | Evidence / resulting behavior |
+| --- | --- |
+| Catalog | Manufacturer-documented 1988–1989 Kawasaki models; instant historical/farm lookup; bounded upstream waits; repeated frontend queries reused; stale responses rejected. |
+| Diagnosis | Duplicate submissions suppressed; upload/diagnosis deadlines; successful results survive browser-storage failure. |
+| Repair follow-up | Saved steps reopen; findings retained; fixed/reopen status persists; no duplicate finding sections. |
+| Privacy | Separate browser sessions cannot list/read another session’s API profiles/diagnoses or submit private photo IDs. HttpOnly signed cookies; private APIs no-store. Guest session isolation is not a verified account. |
+| Data recovery | Export/import of browser-local garage/history; merge preserves existing records; malformed files rejected. Photos are not in backups. |
+| Guidance | Item names/media filenames excluded from symptom evidence; unvalidated numerical rule scores removed from UI; explicit gas/fuel/electrical/braking hazards take priority across categories. |
+| Item identity | Serial/VIN saved with item and repair; known appliance dropdowns suggest a type while leaving it editable. |
+| Uploads | Failed batches clean partial files; supported-type inputs align; new upload files ignored by Git. One previously tracked photo removed from current repository tree (history still contains it). |
+| Abuse | Guest mutation rate limits; photo inspection bounded to six per session/hour and sixty per process/hour. Limits are process-local and reset on restart. |
+| Browser security | Source backup assets blocked; nosniff, referrer, frame and CSP headers. Inline scripts still permitted until legacy inline project code is extracted. |
+| Updates | Versioned app assets, service-worker refresh on reload/open, push/PR/daily regression workflow and daily automated bug-check task. No uncontrolled dependency auto-merges. |
+
+Validation: 41 backend checks and five DOM-based frontend suites. Live catalog release verified in a real browser; deployment health and privacy must be rechecked after the hardening release. These checks do not establish exhaustive correctness or calibrated diagnostic accuracy.
+
+## Paid launch gates
+
+| Gate | Current blocker | Acceptance criteria |
+| --- | --- | --- |
+| Verified accounts | PR2 remains draft. Supabase project was inactive; restoration requested. Domain/SMTP/code-delivery setup incomplete. | Real external-email signup, verification, expired/wrong codes, resend, recovery, sign-out, session expiry and isolation pass. |
+| Durable private data | Garage/history browser-local; API records and uploads in process memory/files; guest signing key ephemeral unless configured. | Per-user durable database with ownership rules, cross-device sync, conflict handling, tested export/deletion, backups and restore rehearsal. |
+| Subscription revenue | No checkout, price, entitlement database, webhook handler, customer portal or billing provider account. | Free access works; successful payment grants paid access; canceled/unpaid subscriptions revoke correctly; duplicated/out-of-order webhook tests; refunds/cancellation/support paths verified. Never grant access based on a checkout redirect. |
+| Content | Partial motorcycle/farm/appliance models, five-code OBD starter library, basic library cards; rules are broad checks rather than model-specific service procedures. | Credible sourced coverage for the advertised audience; no wrong-year matches; known limitation labels; vetted repair/safety scenarios and fault-confirmation tests. |
+| Operational scale | Process-local rate limits/state; no centralized budget enforcement; no load test or restore drill. | Durable/distributed limits, request/load budget, cost ceiling, measured latency under representative concurrency, alerting and rollback exercised. |
+| Privacy and support | No complete published privacy/terms/contact/account-deletion flow. | Accurate product disclosures of local/server/provider data handling and retention, reachable support, user deletion/export; owner approves business/legal text. |
+| Quality/accessibility | Desktop live test + DOM tests, not a mobile device matrix. | Android/iOS camera uploads, keyboard/screen reader, narrow viewports, offline/reconnect, full storage, expired session, network failure and update recovery verified. |
+| Customer retention | Free-plus-subscription selected; offer and willingness to pay unvalidated. | Define audience and paid benefit, test with target users, instrument privacy-conscious completion/conversion/retention and cost per paying customer. |
+
+## Subscription implementation contract
+
+Keep basic symptom checks free. Define a paid benefit that provides repeat value (for example deeper evidence-guided follow-up and durable private repair records), with usage limits that cover photo-processing cost. The exact price/features need owner selection and real customer validation. Do not advertise cloud sync, complete catalogs, guaranteed repair accuracy, or “unlimited” AI before those promises are implemented and economically tested.
+
+Use hosted checkout and customer portal. Store entitlements server-side under verified user IDs. Verify webhook signatures, deduplicate event IDs and tolerate out-of-order delivery. Test first payment, renewal, failure, recovery, cancellation, refund and re-subscription in test mode before activating real charges. Provider credentials and financial-account onboarding must be completed through the provider’s secure setup flow.
+
+## Immediate sequence
+
+1. Deploy and verify privacy/recovery hardening.
+2. Restore/configure existing Supabase and verified email; complete PR2 integration and real email tests.
+3. Add durable owned garage/history storage and verified migration of guest data.
+4. Select subscription price/benefit and connect billing in test mode.
+5. Complete checkout/lifecycle tests, published disclosures/support and mobile/load checks.
+6. Release a small beta to target users; fix measured failures before paid public launch.

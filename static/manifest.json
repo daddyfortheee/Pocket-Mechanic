@@ -1,7 +1,7 @@
 {
   "name": "Pocket Guru",
   "short_name": "Pocket Guru",
-  "start_url": "/?v=11",
+  "start_url": "/",
   "display": "standalone",
   "background_color": "#f4f7f6",
   "theme_color": "#102e31",

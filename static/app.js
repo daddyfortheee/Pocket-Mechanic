@@ -34,7 +34,7 @@ function historyItems(){
 }
 function renderHistory(){
   const items=historyItems();
-  const html=items.length?items.map(x=>`<div class="history-item"><strong>${esc(x.category)}</strong>${x.fixed_at?'<span class="badge work-fixed">Verified fixed by you</span>':''}<div>${esc(x.symptom)}</div><small class="muted">${esc(x.title)} · ${Math.round(x.confidence*100)}%</small><div class="work-actions"><button type="button" data-open-work="${esc(x.id)}" aria-label="Open saved work: ${esc(x.symptom)}">Open work</button><button type="button" data-fixed-work="${esc(x.id)}">${x.fixed_at?'Reopen issue':'Mark fixed'}</button><button type="button" data-delete-work="${esc(x.id)}" aria-label="Delete saved work: ${esc(x.symptom)}">Delete</button></div></div>`).join(''):'<p class="muted">No saved diagnoses yet.</p>';
+  const html=items.length?items.map(x=>`<div class="history-item"><strong>${esc(x.category)}</strong>${x.fixed_at?'<span class="badge work-fixed">Verified fixed by you</span>':''}<div>${esc(x.symptom)}</div><small class="muted">${esc(x.title)}</small><div class="work-actions"><button type="button" data-open-work="${esc(x.id)}" aria-label="Open saved work: ${esc(x.symptom)}">Open work</button><button type="button" data-fixed-work="${esc(x.id)}">${x.fixed_at?'Reopen issue':'Mark fixed'}</button><button type="button" data-delete-work="${esc(x.id)}" aria-label="Delete saved work: ${esc(x.symptom)}">Delete</button></div></div>`).join(''):'<p class="muted">No saved diagnoses yet.</p>';
   $('#homeHistory').innerHTML=html; $('#fullHistory').innerHTML=html;
   $$('[data-open-work]').forEach(button=>button.onclick=()=>openSavedWork(button.dataset.openWork));
   $$('[data-fixed-work]').forEach(button=>button.onclick=()=>toggleWorkFixed(button.dataset.fixedWork));
@@ -85,11 +85,11 @@ function openSavedWork(id){
   if(item && entry.category!=='diy'){
     const saved=read(GARAGE_KEY).find(x=>x.id===item.id && x.category===entry.category);
     $('#profileSelect').value=saved?saved.id:'';
-    for(const [field,key] of [['garageName','name'],['garageYear','year'],['garageMake','make'],['garageModel','model'],['garageEngine','engine'],['garageNotes','notes']]) $('#'+field).value=item[key] || '';
+    for(const [field,key] of [['garageName','name'],['garageYear','year'],['garageMake','make'],['garageModel','model'],['garageEngine','engine'],['garageSerial','serial'],['garageNotes','notes']]) $('#'+field).value=item[key] || '';
     garageForm.dispatchEvent(new Event('pocket:item-loaded'));
   }
   $('#symptom').value=entry.symptom || '';activeWorkId=entry.id;
-  if(entry.result && Array.isArray(entry.result.causes)){
+  if(validResult(entry.result)){
     renderResult(entry.result);
     $('#status').textContent='Saved work reopened. Review your steps or update the description and run it again.';
   }else{
@@ -147,7 +147,7 @@ function updateItemFields(){
   $('#garageName').placeholder = vehicle ? 'Vehicle name (optional)' : 'Item name (optional)';
 }
 function resetItemEditor(){
-  ['garageName','garageYear','garageMake','garageModel','garageEngine','garageNotes'].forEach(id=>$('#'+id).value='');
+  ['garageName','garageYear','garageMake','garageModel','garageEngine','garageSerial','garageNotes'].forEach(id=>$('#'+id).value='');
   $('#saveDiagnosisItem').checked = false;
   garageForm.dispatchEvent(new Event('pocket:item-reset'));
 }
@@ -185,7 +185,7 @@ function loadSelectedItem(){
   const item = read(GARAGE_KEY).find(x=>x.id===$('#profileSelect').value);
   resetItemEditor();
   if(item){
-    for(const [id,key] of [['garageName','name'],['garageYear','year'],['garageMake','make'],['garageModel','model'],['garageEngine','engine'],['garageNotes','notes']]) $('#'+id).value = item[key] || '';
+    for(const [id,key] of [['garageName','name'],['garageYear','year'],['garageMake','make'],['garageModel','model'],['garageEngine','engine'],['garageSerial','serial'],['garageNotes','notes']]) $('#'+id).value = item[key] || '';
     $('#garageCategory').value = item.category;
     $('#symptom').value = item.notes || '';
     garageForm.dispatchEvent(new Event('pocket:item-loaded'));
@@ -194,7 +194,7 @@ function loadSelectedItem(){
 }
 function diagnosisItem(){
   if($('#category').value==='diy') return null;
-  const item = {category:$('#category').value,year:$('#garageYear').disabled?'':$('#garageYear').value,make:$('#garageMake').value.trim(),model:$('#garageModel').value.trim(),engine:$('#garageEngine').value.trim(),notes:$('#symptom').value.trim()};
+  const item = {category:$('#category').value,year:$('#garageYear').disabled?'':$('#garageYear').value,make:$('#garageMake').value.trim(),model:$('#garageModel').value.trim(),engine:$('#garageEngine').value.trim(),serial:$('#garageSerial').value.trim(),notes:$('#symptom').value.trim()};
   item.name = $('#garageName').value.trim() || [item.year,item.make,item.model].filter(Boolean).join(' ') || 'My ' + item.category + ' item';
   const saved = $('#profileSelect').value;
   if(saved) item.id = saved;
@@ -220,7 +220,7 @@ $('#category').addEventListener('change',()=>{
 $('#profileSelect').addEventListener('change',()=>{resetDiagnosis();loadSelectedItem();});
 garageForm.addEventListener('submit',e=>{
   e.preventDefault();
-  const item={name:$('#garageName').value.trim(),category:$('#garageCategory').value,year:$('#garageYear').disabled?'':$('#garageYear').value,make:$('#garageMake').value.trim(),model:$('#garageModel').value.trim(),engine:$('#garageEngine').value.trim(),notes:$('#garageNotes').value.trim()};
+  const item={name:$('#garageName').value.trim(),category:$('#garageCategory').value,year:$('#garageYear').disabled?'':$('#garageYear').value,make:$('#garageMake').value.trim(),model:$('#garageModel').value.trim(),engine:$('#garageEngine').value.trim(),serial:$('#garageSerial').value.trim(),notes:$('#garageNotes').value.trim()};
   if(!item.name){$('#garageName').focus();return;}
   if(saveItem(item)){resetItemEditor();updateItemFields();}
 });
@@ -234,8 +234,9 @@ function renderVisualAnalysis(analysis){
   return `<section class="cause"><h3>Photo inspection</h3><p class="muted">Preliminary visual evidence. Confirm the fault with tests before ordering parts.</p><p><strong>Brand:</strong> ${esc(analysis.brand)}<br><strong>Model:</strong> ${esc(analysis.model)}<br><strong>Serial / VIN:</strong> ${esc(analysis.serial_or_vin)}</p>${list('Visible label text',analysis.visible_text)}${list('Visible components',analysis.identified_parts)}${list('Visible abnormalities',analysis.visible_problems)}<p>${esc(analysis.likely_relevance)}</p>${list('Next photos and tests',analysis.follow_up)}${analysis.safety_warning && !['None','Unknown'].includes(analysis.safety_warning) ? `<div class="safety">${esc(analysis.safety_warning)}</div>` : ''}<p class="muted">Analyzed: ${(analysis.analyzed_files || []).map(esc).join(', ')}</p>${list('Not analyzed',analysis.skipped_files)}${analysis.attachment_warning ? `<p>${esc(analysis.attachment_warning)}</p>` : ''}</section>`;
 }
 
+function validResult(data){return data && Array.isArray(data.causes) && data.causes.length>0 && data.causes.every(c=>c && typeof c.title==='string' && Array.isArray(c.checks) && c.checks.every(x=>typeof x==='string') && Array.isArray(c.repair) && c.repair.every(x=>typeof x==='string'));}
 function renderResult(data){
-  const r=$('#result');r.classList.remove('hidden');r.innerHTML=`<h2>Your next steps</h2><p>${esc(data.summary)}</p>${renderVisualAnalysis(data.visual_analysis)}<div class="safety">${esc(data.safety_message)}</div>${data.causes.map(c=>`<article class="cause"><h3>${esc(c.title)} <span class="confidence">${Math.round(c.confidence*100)}%</span></h3><p>${esc(c.why)}</p><h4>Checks</h4><ol>${c.checks.map(v=>`<li>${esc(v)}</li>`).join('')}</ol><h4>Repair path</h4><ul>${c.repair.map(v=>`<li>${esc(v)}</li>`).join('')}</ul></article>`).join('')}`;r.scrollIntoView({behavior:'smooth',block:'start'});
+  const r=$('#result');r.classList.remove('hidden');r.innerHTML=`<h2>Your next steps</h2><p class="muted">Suggested checks based on your description. Confirm the fault with measurements and the manufacturer’s service instructions before replacing parts.</p><p>${esc(data.summary)}</p>${renderVisualAnalysis(data.visual_analysis)}<div class="safety">${esc(data.safety_message)}</div>${data.causes.map(c=>`<article class="cause"><h3>${esc(c.title)} </h3><p>${esc(c.why)}</p><h4>Checks</h4><ol>${c.checks.map(v=>`<li>${esc(v)}</li>`).join('')}</ol><h4>Repair path</h4><ul>${c.repair.map(v=>`<li>${esc(v)}</li>`).join('')}</ul></article>`).join('')}`;r.scrollIntoView({behavior:'smooth',block:'start'});
   renderWorkControls();
 }
 
@@ -468,6 +469,7 @@ button.disabled = true;
     const data = await response.json();
     if(revision !== diagnosisRevision) return;
 
+    if(!validResult(data))throw new Error('The server returned an incomplete result. Please try again.');
     const top = data.causes[0];
     const items = read(HISTORY_KEY);
 
@@ -515,6 +517,7 @@ $('#obdForm').addEventListener('submit',async e=>{
 async function connection(){try{const r=await fetch('/health',{signal:AbortSignal.timeout(10000)});if(!r.ok)throw new Error('Unavailable');const d=await r.json();if(!d.version)throw new Error('Invalid health response');$('#connection').textContent='Connected';}catch{$('#connection').textContent='Offline';}}
 if('serviceWorker'in navigator)navigator.serviceWorker.register('/static/service-worker.js').catch(()=>{});
 window.addEventListener('online',connection);window.addEventListener('offline',()=>{$('#connection').textContent='Offline';});
+document.addEventListener('pocket:backup-restored',()=>{renderHistory();renderGarage();syncDiagnosisItems();});
 renderHistory();renderGarage();connection();
 
 /* POCKET_PROJECT_UI_V3 */

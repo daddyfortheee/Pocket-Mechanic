@@ -130,7 +130,7 @@ const garageForm = $('#garageForm');
 const itemFields = $('#itemFields');
 function updateItemFields(){
   const type = $('#garageCategory').value;
-  const vehicle = ['automotive','motorcycle'].includes(type);
+  const vehicle = ['automotive','motorcycle','equipment'].includes(type);
   $('#garageYear').parentElement.hidden = !vehicle;
   $('#garageYear').disabled = !vehicle;
   const fields = [

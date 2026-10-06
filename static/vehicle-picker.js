@@ -26,15 +26,7 @@
   // Starter model families, not a complete or year-specific parts catalog.
   const catalogs = {
     motorcycle: {
-      Honda:['Africa Twin','CBR600RR','CBR1000RR','Gold Wing','Rebel 300','Rebel 500','Rebel 1100'],
-      Yamaha:['MT-07','MT-09','YZF-R1','YZF-R3','YZF-R6','V Star'],
-      Kawasaki:['Ninja 400','Ninja 650','Ninja ZX-6R','KLR650','Vulcan'],
-      Suzuki:['GSX-R600','GSX-R750','GSX-R1000','Hayabusa','V-Strom'],
-      'Harley-Davidson':['Sportster','Softail','Road King','Road Glide','Street Glide'],
-      BMW:['R 1250 GS','R 1200 GS','S 1000 RR'],
-      Ducati:['Monster','Multistrada','Panigale'],
-      KTM:['Duke','Adventure','EXC'],Triumph:['Bonneville','Street Triple','Tiger'],
-      Indian:['Scout','Chief','Chieftain'],Aprilia:['RS 660','Tuono','RSV4'],'Royal Enfield':['Classic 350','Himalayan','Interceptor 650']
+      Honda:[],Yamaha:[],Kawasaki:[],Suzuki:[],'Harley-Davidson':[],BMW:[],Ducati:[],KTM:[],Triumph:[],Indian:[],Aprilia:[],'Royal Enfield':[]
     },
     appliance: {
       GE:['GFW550SSNWW','GDT645SYNFS'],Samsung:['DVE50R5400V','WF45R6100AW'],
@@ -45,6 +37,7 @@
       Kenmore:[],Hotpoint:[],Haier:[],Miele:[],Hisense:[],Beko:[],Insignia:[],Danby:[]
     },
     equipment: {
+      Ford:[],Kubota:[],'Massey Ferguson':[],'New Holland':[],'Case IH':[],'International Harvester':[],'Allis-Chalmers':[],Kioti:[],Mahindra:[],
       Yamaha:['G29 / Drive','Drive2'], 'Club Car':['DS','Precedent','Onward'], 'E-Z-GO':['TXT','RXV'],
       Honda:['GX160','GX200','GX390'], 'Briggs & Stratton':['Intek','Vanguard'],
       Kohler:['Command','Courage'], 'John Deere':['D100','D130','E100','S100'],
@@ -57,9 +50,11 @@
       Honeywell:['T6 Pro','T9','T10 Pro'],Nest:['Learning Thermostat','Thermostat E'],Ecobee:['SmartThermostat','Smart Thermostat Premium'],LiftMaster:['8500','87504'],Chamberlain:['B2405','B6753T'],Genie:['StealthDrive','SilentMax']
     }
   };
+  const farmMakes = ['John Deere','Ford','Kubota','Massey Ferguson','New Holland','Case IH','International Harvester','Allis-Chalmers','Kioti','Mahindra'];
+  const yearModels = () => category.value === 'motorcycle' || (category.value === 'equipment' && farmMakes.includes(inputs[0].value));
   const supported = () => automotive() || !!catalogs[category.value];
   const dropdown = i => supported() && (automotive() || i < 2);
-  const label = i => i === 0 && !['automotive','motorcycle'].includes(category.value) ? 'brand' : names[i];
+  const label = i => i === 0 && !['automotive','motorcycle','equipment'].includes(category.value) ? 'brand' : names[i];
   function setOptions(i, values = [], message = 'Choose ' + label(i), failed = false) {
     selects[i].replaceChildren(new Option(message, ''),
       ...values.map(value => new Option(value, value)),
@@ -77,20 +72,20 @@
   }
   async function load(i) {
     if (!supported() || !dropdown(i)) return;
-    if (!automotive()) {
+    if (!automotive() && !(yearModels() && i === 1)) {
       const catalog = catalogs[category.value];
       const options = i === 0 ? Object.keys(catalog).sort() : (catalog[inputs[0].value.trim()] || []);
       setOptions(i, options, options.length ? 'Choose ' + label(i) : 'No starter models listed');
-      help.textContent = 'Starter brand and model list. Model choices are not filtered by year. Confirm the exact model on the label; enter any unlisted model manually.';
+      help.textContent = (category.value === 'motorcycle' || category.value === 'equipment' ? 'Choose a year and make to load matching motorcycle or farm tractor models. Unlisted items can be entered manually.' : 'Starter brand and model list. Confirm the exact model on the label; enter any unlisted model manually.');
       return;
     }
     const y = Number(year.value);
-    if (!Number.isInteger(y) || y < 1900 || y > 2100 || !year.value) return;
+    if (!Number.isInteger(y) || y < 1900 || y > 2100 || !year.value) {setOptions(i, [], 'Choose a year first');return;}
     if (i > 0 && !inputs[0].value.trim()) return;
     if (i > 1 && !inputs[1].value.trim()) return;
     const generation = ++generations[i];
     setOptions(i, [], 'Loading ' + names[i] + ' choices…');
-    const params = new URLSearchParams({year: year.value});
+    const params = new URLSearchParams({year: year.value, category:category.value});
     if (i > 0) params.set('make', inputs[0].value.trim());
     if (i > 1) params.set('model', inputs[1].value.trim());
     try {
@@ -98,13 +93,13 @@
         {signal: AbortSignal.timeout(30000)});
       if (!response.ok) throw new Error('catalog unavailable');
       const data = await response.json();
-      if (generation !== generations[i] || !automotive()) return;
+      if (generation !== generations[i] || !supported()) return;
       setOptions(i, data.options, data.options.length ? 'Choose ' + label(i) : 'No catalog matches');
       help.textContent = data.options.length
-        ? 'Choose your year, make, model, then engine / transmission. Not listed? Use manual entry.'
+        ? (yearModels() ? 'Models for ' + year.value + ' ' + inputs[0].value + ' from ' + data.source + '. Catalog coverage may be incomplete; enter an unlisted model manually.' : 'Choose your year, make, model, then engine / transmission. Not listed? Use manual entry.')
         : 'No catalog matches for these details. Use “Not listed? Enter manually.”';
     } catch {
-      if (generation !== generations[i] || !automotive()) return;
+      if (generation !== generations[i] || !supported()) return;
       setOptions(i, [], 'Could not load choices', true);
       help.textContent = 'The vehicle catalog could not load. Choose “Try loading again” to retry, or enter the details manually.';
     }
@@ -129,10 +124,10 @@
   }));
   let timer;
   year.addEventListener('input', () => {
-    if (!automotive()) return;
+    if (!supported()) return;
     clearTimeout(timer);
-    clearFrom(0);
-    timer = setTimeout(() => load(0), 300);
+    if(!automotive()){clearFrom(1);timer=setTimeout(()=>load(1),300);}
+    else {clearFrom(0);timer=setTimeout(()=>load(0),300);}
   });
   function configure() {
     clearTimeout(timer);
@@ -156,6 +151,13 @@
       inputs[i].hidden=dropdown(i);
     }
     help.hidden=!supported();
+    if(yearModels() && year.value && inputs[0].value){
+      const savedModel=inputs[1].value;
+      load(1).then(()=>{if(savedModel && inputs[1].value===savedModel){
+        if(![...selects[1].options].some(option=>option.value===savedModel)) selects[1].add(new Option(savedModel + ' (saved; confirm model)',savedModel));
+        selects[1].value=savedModel;
+      }});
+    }
   });
   // reset fires before reset values are applied and category is restored by app.js.
   form.addEventListener('reset', () => {

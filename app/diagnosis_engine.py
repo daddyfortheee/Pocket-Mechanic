@@ -50,7 +50,8 @@ def build_diagnostic_causes(
     answers: dict[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
     answers = answers or {}
-    answer_text = " ".join(str(value) for value in answers.values())
+    evidence_keys = {"findings", "battery_voltage", "batteryVoltage", "measurements", "observations"}
+    answer_text = " ".join(str(value) for key, value in answers.items() if key in evidence_keys)
     text = f"{symptom} {answer_text}".lower().replace("’", "'").replace("‘", "'")
 
     causes: list[dict[str, Any]] = []

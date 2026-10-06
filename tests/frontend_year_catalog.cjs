@@ -23,5 +23,6 @@ q('#garageCategory').value='equipment';change('#garageCategory');assert(!q('#gar
 q('#garageYear').value='1968';q('#garageMakePicker').value='John Deere';change('#garageMakePicker');await tick();assert(calls.at(-1).includes('year=1968'));assert(calls.at(-1).includes('make=John+Deere'));assert([...q('#garageModelPicker').options].some(o=>o.value==='4020'));
 q('#garageMakePicker').value='Ford';change('#garageMakePicker');assert.equal(q('#garageModel').value,'');await tick();
 q('#garageModelPicker').value='__manual__';change('#garageModelPicker');assert(!q('#garageModel').hidden);
+q('#garageCategory').value='motorcycle';change('#garageCategory');q('#garageYear').value='1980';q('#garageYear').dispatchEvent(new w.Event('input'));q('#garageMakePicker').value='Kawasaki';change('#garageMakePicker');await tick();q('#garageModelPicker').value='KZ550-A1';change('#garageModelPicker');await new Promise(r=>setTimeout(r,320));assert.equal(q('#garageModelPicker').value,'KZ550-A1','Pending year debounce must not erase a model selected after make selection');
 await tick();console.log('PASS: year/make queries, year reset, stale response rejection, farm year fields, manual fallback');w.close();
 })().catch(e=>{console.error(e);process.exit(1)});

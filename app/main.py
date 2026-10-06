@@ -45,7 +45,7 @@ ALLOWED_VIDEO_TYPES = {
     "video/quicktime",
 }
 
-app = FastAPI(title="Pocket Guru API", version="0.6.3")
+app = FastAPI(title="Pocket Guru API", version="0.6.4")
 app.include_router(vehicle_catalog_router)
 app.add_middleware(
     CORSMiddleware,
@@ -505,7 +505,7 @@ def get_diagnosis(diagnosis_id: str, request: Request) -> DiagnosisResponse:
 @app.post("/api/profiles", status_code=201)
 def create_profile(profile: ProfileCreate, request: Request) -> dict[str, Any]:
     profile_id = str(uuid4())
-    data = profile.dict() if hasattr(profile, "dict") else profile.model_dump()
+    data = profile.model_dump()
     record = {"id": profile_id, **data, "created_at": datetime.now(timezone.utc).isoformat()}
     PROFILES[profile_id] = record
     OWNERS[profile_id] = request.state.owner

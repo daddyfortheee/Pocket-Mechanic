@@ -18,6 +18,8 @@ Decision: beta, not ready for paid public launch. Selected model: free core offe
 | Browser security | Source backup assets blocked; nosniff, referrer, frame and CSP headers. Inline scripts still permitted until legacy inline project code is extracted. |
 | Updates | Versioned app assets, service-worker refresh on reload/open, push/PR/daily regression workflow and daily automated bug-check task. No uncontrolled dependency auto-merges. |
 
+Dependency audit: upgraded FastAPI/Starlette, Pydantic, multipart parser and pytest; pinned the resolved runtime dependency set, separated test dependencies, and added scheduled dependency scanning. Validate audit results against the current vulnerability feed.
+
 Validation: 41 backend checks and five DOM-based frontend suites. Live catalog release verified in a real browser; deployment health and privacy must be rechecked after the hardening release. These checks do not establish exhaustive correctness or calibrated diagnostic accuracy.
 
 ## Paid launch gates

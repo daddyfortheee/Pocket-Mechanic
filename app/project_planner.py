@@ -9,11 +9,10 @@ def build_project_plan(
     media_count: int = 0,
 ) -> dict[str, Any]:
     answers = answers or {}
-    text = (
-        description
-        + " "
-        + " ".join(str(value) for value in answers.values())
-    ).lower()
+    # Only explicit project evidence may choose a plan, never item/media metadata.
+    fields=('findings','measurements','observations','materials','dimensions')
+    text=(description+' '+' '.join(str(answers[k]) for k in fields if k in answers)).lower()
+
 
     media_note = ""
     if media_count == 1:
@@ -29,7 +28,7 @@ def build_project_plan(
         "grout",
     )):
         return {
-            "title": "12x24 tile installation plan",
+            "title": "Tile installation plan",
             "confidence": 0.94,
             "summary": (
                 "Pocket Guru created a tile-installation project plan."
@@ -40,7 +39,7 @@ def build_project_plan(
                 "protection, and suitable respiratory protection when cutting."
             ),
             "why": (
-                "Large-format tile requires a flat and stable surface, careful "
+                "Tile installation requires a flat and stable surface, careful "
                 "layout, proper mortar coverage, and regular lippage checks."
             ),
             "checks": [
@@ -53,7 +52,7 @@ def build_project_plan(
                 "Dry-fit several tiles with the intended grout-joint spacing.",
                 "Use mortar approved for the tile and the underlying surface.",
                 "Key mortar into the surface and comb ridges in one direction.",
-                "Back-butter each 12x24 tile before setting it.",
+                "Follow the tile and mortar manufacturers’ instructions for trowel selection and back-buttering.",
                 "Move the tile across the mortar ridges to collapse them.",
                 "Lift occasional tiles to confirm adequate mortar coverage.",
                 "Check alignment, spacing, level, and lippage continuously.",
@@ -208,6 +207,6 @@ def build_project_plan(
         ],
         "repair": [
             "Add dimensions, material details, and pictures for a more detailed plan.",
-            "Pocket Guru can then calculate quantities and produce an ordered installation guide.",
+            "Use the product manufacturer’s coverage and installation instructions to confirm quantities and the work sequence.",
         ],
     }

@@ -58,6 +58,24 @@ def build_diagnostic_causes(
         # Shared starting-circuit checks, without assuming this item's nominal voltage or fuel type.
         battery_findings=[note for note in answers.get('findings',[]) if isinstance(note,str) and note.startswith('Battery ') and 'test after charging' in note]
         return build_diagnostic_causes('automotive','Engine does not crank when trying to start.',{'findings':battery_findings})[:1]
+    if category in {'motorcycle','equipment'} and (
+        answers.get('starting_behavior')=='cranks' or
+        (contains(text,'will not start',"won't start",'wont start','no start','not starting') and contains(text,'crank','turn over','turns over'))
+    ):
+        return [make_cause('Engine turns over but does not start — identify fuel and ignition requirements',0.65,
+            'The engine is reported to turn over. Test the requirements for this exact engine type; petrol, diesel and other systems need different procedures.',
+            ['Identify the exact engine model and fuel type before selecting a service procedure.',
+             'Read supported fault codes and save them before clearing anything.',
+             'Have fuel delivery, engine-speed signals, timing and compression checked against manufacturer specifications; check ignition only on engines that use spark ignition.',
+             'Check safety interlocks by the specified diagnostic method; do not bypass them.'],
+            ['Correct only the fault confirmed by testing, then safely verify the original starting complaint.'], 'high')]
+    if category=='home' and contains(text,'faucet','tap') and contains(text,'drip','leak'):
+        return [make_cause('Faucet leak — identify where water escapes',0.65,
+            'A spout drip, handle leak and supply connection leak need different checks; the description alone does not identify a replacement part.',
+            ['Identify whether water escapes from the spout, handle, base or supply connection.',
+             'Locate and verify the water shutoff; shut off and relieve pressure before disassembly.',
+             'Identify the faucet model and inspect the relevant seal or cartridge using its service instructions.'],
+            ['Use model-compatible parts only after identifying the leak; restore water gradually and inspect for leaks.'], 'medium')]
     causes: list[dict[str, Any]] = []
 
     def add(cause: dict[str, Any]) -> None:
@@ -360,6 +378,9 @@ def build_diagnostic_causes(
             "won't drain",
             "wont drain",
             "not draining",
+            "will not drain",
+            "does not drain",
+            "doesn't drain",
             "standing water",
         ):
             add(make_cause(
@@ -384,6 +405,9 @@ def build_diagnostic_causes(
             text,
             "no heat",
             "not heating",
+            "will not heat",
+            "does not heat",
+            "won't heat",
             "not drying",
             "cold dryer",
         ):

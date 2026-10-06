@@ -20,13 +20,13 @@ Decision: beta, not ready for paid public launch. Selected model: free core offe
 
 Dependency audit: upgraded FastAPI/Starlette, Pydantic, multipart parser and pytest; pinned the resolved runtime dependency set, separated test dependencies, and added scheduled dependency scanning. Validate audit results against the current vulnerability feed.
 
-Validation: 52 backend checks and six DOM-based frontend suites. Live catalog release verified in a real browser; deployment health and privacy must be rechecked after the hardening release. These checks do not establish exhaustive correctness or calibrated diagnostic accuracy.
+Validation: 63 backend checks and six DOM-based frontend suites. Live catalog release verified in a real browser; deployment health and privacy must be rechecked after the hardening release. These checks do not establish exhaustive correctness or calibrated diagnostic accuracy.
 
 ## Paid launch gates
 
 | Gate | Current blocker | Acceptance criteria |
 | --- | --- | --- |
-| Verified accounts | PR2 remains draft. Supabase project was inactive; restoration requested. Domain/SMTP/code-delivery setup incomplete. | Real external-email signup, verification, expired/wrong codes, resend, recovery, sign-out, session expiry and isolation pass. |
+| Verified accounts | PR2 remains draft. Supabase project restored; application integration remains incomplete. Domain/SMTP/code-delivery setup incomplete. | Real external-email signup, verification, expired/wrong codes, resend, recovery, sign-out, session expiry and isolation pass. |
 | Durable private data | Garage/history browser-local; API records and uploads in process memory/files; guest signing key ephemeral unless configured. | Per-user durable database with ownership rules, cross-device sync, conflict handling, tested export/deletion, backups and restore rehearsal. |
 | Subscription revenue | No checkout, price, entitlement database, webhook handler, customer portal or billing provider account. | Free access works; successful payment grants paid access; canceled/unpaid subscriptions revoke correctly; duplicated/out-of-order webhook tests; refunds/cancellation/support paths verified. Never grant access based on a checkout redirect. |
 | Content | Partial motorcycle/farm/appliance models, five-code OBD starter library, basic library cards; rules are broad checks rather than model-specific service procedures. | Credible sourced coverage for the advertised audience; no wrong-year matches; known limitation labels; vetted repair/safety scenarios and fault-confirmation tests. |
@@ -55,3 +55,17 @@ Use hosted checkout and customer portal. Store entitlements server-side under ve
 Diagnosis now leads with one actionable check, captures the result and evidence, and selects the next step. Starting problems branch between no-crank and crank-no-start; passed battery tests lead to cable/ground testing before starter diagnosis. A reported fault requires confirmation and a repair retest. A failed retest remains open; success is clearly a user-reported outcome. Reopening clears the previous completion state. Other symptoms use recorded observations to advance the available checklists, confirm a finding or prepare a targeted handoff. Prior photo evidence is retained without re-uploading it on each follow-up. Changing item identity resets structured tests.
 
 This is an initial predefined workflow, not universal model-specific diagnostic coverage. Expanding and validating targeted branches remains a product release gate.
+
+## Full workflow rerun — October 6, 2026
+
+Reran all 63 backend tests and six frontend suites. Live health, app shell, manifest, supported/unknown OBD lookup and all six diagnosis categories were exercised. These are representative workflow checks, not exhaustive real-device or load validation. Provider photo analysis remains covered by mocks; a configured API key does not establish image accuracy.
+
+Repaired this pass:
+- Different item or original complaint creates a separate case and cannot inherit old findings, photo analysis, media counts or structured results. The old case remains available.
+- DIY planning ignores item names and filenames as project intent, stops assuming 12x24 tile dimensions, and removes an unimplemented quantity-calculation promise.
+- Plain-language drain/heating complaints route to relevant appliance checks.
+- Crank-no-start motorcycle/equipment complaints request exact engine/fuel identity and appropriate manufacturer tests rather than assume petrol components.
+- Dripping faucets receive leak-location and water-isolation checks.
+- Reopened cases explain that earlier photo inspection is retained; new uploads are needed only for new evidence.
+
+The strongest next product milestones are verified accounts with durable owned case data, model-specific evidence-guided repair coverage, genuine mobile/device validation, and subscription lifecycle implementation. The app remains a beta until those acceptance criteria are met.

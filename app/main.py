@@ -46,7 +46,7 @@ ALLOWED_VIDEO_TYPES = {
     "video/quicktime",
 }
 
-app = FastAPI(title="Pocket Guru API", version="0.7.0")
+app = FastAPI(title="Pocket Guru API", version="0.7.1")
 app.include_router(vehicle_catalog_router)
 app.add_middleware(
     CORSMiddleware,

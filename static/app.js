@@ -140,7 +140,7 @@ function openSavedWork(id){
     $('#result').classList.remove('hidden');$('#result').textContent='Previous steps were not saved for this older entry.';
     renderWorkControls();$('#symptom').focus();
   }
-  if(entry.media_count)$('#status').textContent+=' Reattach photos or video if you run it again.';
+  if(entry.media_count)$('#status').textContent+=' Earlier photo inspection is retained. Attach new media only if it adds evidence.';
 }
 $('#clearHistory').addEventListener('click',()=>{write(HISTORY_KEY,[]);activeWorkId=null;renderWorkControls();renderHistory();});
 
@@ -463,7 +463,8 @@ $('#diagnosisForm').addEventListener('submit', async event => {
   const currentSymptom=$('#symptom').value;
   const currentCategory=$('#category').value;
   const revision = diagnosisRevision;
-  const continuedWork=historyItems().find(item=>item.id===activeWorkId);
+  const candidateWork=historyItems().find(item=>item.id===activeWorkId);
+  const continuedWork=sameGuidedContext(candidateWork,currentCategory,currentSymptom,currentItem) ? candidateWork : null;
   const button = $('#diagnoseButton');
   
   const projectMode = isProjectMode();

@@ -33,7 +33,7 @@ async function boot(entries) {
   assert.equal(b.q('#garageModel').value, 'Silverado');
   assert.equal(b.q('#garageEnginePicker').value, '6.2L');
   assert(b.q('#result').textContent.includes('Replace if it fails testing'));
-  assert(b.q('#status').textContent.includes('Reattach'));
+  assert(b.q('#status').textContent.includes('Attach new media'));
   assert.equal(b.calls(), 0, 'Opening saved work must not regenerate it');
   b.q('#newFinding').value = 'Battery passed a load test after charging, but it still only clicks.';
   b.q('#continueDiagnosis').click();

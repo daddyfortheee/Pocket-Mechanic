@@ -98,3 +98,10 @@ def test_dsc_complaint_has_targeted_path_and_not_transmission_guess():
     rows=[record('dsc_lights','off_only'),record('dsc_scan','codes')]
     assert run(rows,symptom=symptom)['guided_step']['question_id']=='check_dsc_fault_confirm'
     assert run(rows+[record('check_dsc_fault_confirm','confirmed','Fault isolated by technician')],symptom=symptom)['guided_step']['question_id']=='repair_retest'
+
+@pytest.mark.parametrize('behavior',['no_crank','slow_crank'])
+def test_latest_guided_start_observation_overrides_older_free_text(behavior):
+    result=run([record('start_behavior','cranks'),record('start_behavior',behavior)],
+               findings=['Earlier attempt: cranks but will not start'])
+    assert result['guided_step']['question_id']=='battery_test'
+    assert result['causes'][0]['title'].startswith('No-crank starting fault')

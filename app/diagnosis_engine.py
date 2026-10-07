@@ -103,10 +103,13 @@ def build_diagnostic_causes(
         if behavior == 'cranks': starting_text = "cranks but will not start"
         if behavior == 'stalls': starting_text = "starts then stalls"
 
-        for note in evidence[1:]:
-            normalized = note.lower().replace("’", "'")
-            if contains(normalized, "cranks but", "turns over but", "crank no start"):
-                starting_text = normalized
+        # A new guided observation supersedes earlier free-text attempts.
+        # Legacy cases without a guided observation still use their findings.
+        if behavior not in {'no_crank','slow_crank','cranks','stalls'}:
+            for note in evidence[1:]:
+                normalized = note.lower().replace("’", "'")
+                if contains(normalized, "cranks but", "turns over but", "crank no start"):
+                    starting_text = normalized
         no_crank = contains(starting_text, "no crank", "no-crank", "doesn't crank", "does not crank",
                             "won't crank", "wont crank", "doesn't turn over", "does not turn over",
                             "won't turn over", "not turning over", "engine doesn't turn", "engine does not turn")

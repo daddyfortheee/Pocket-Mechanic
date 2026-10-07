@@ -20,7 +20,7 @@ Decision: beta, not ready for paid public launch. Selected model: free core offe
 
 Dependency audit: upgraded FastAPI/Starlette, Pydantic, multipart parser and pytest; pinned the resolved runtime dependency set, separated test dependencies, and added scheduled dependency scanning. Validate audit results against the current vulnerability feed.
 
-Validation: 63 backend checks and six DOM-based frontend suites. Live catalog release verified in a real browser; deployment health and privacy must be rechecked after the hardening release. These checks do not establish exhaustive correctness or calibrated diagnostic accuracy.
+Validation: 65 backend checks and six DOM-based frontend suites. Live catalog release verified in a real browser; deployment health and privacy must be rechecked after the hardening release. These checks do not establish exhaustive correctness or calibrated diagnostic accuracy.
 
 ## Paid launch gates
 
@@ -69,3 +69,9 @@ Repaired this pass:
 - Reopened cases explain that earlier photo inspection is retained; new uploads are needed only for new evidence.
 
 The strongest next product milestones are verified accounts with durable owned case data, model-specific evidence-guided repair coverage, genuine mobile/device validation, and subscription lifecycle implementation. The app remains a beta until those acceptance criteria are met.
+
+## Bug-check release — October 7, 2026
+
+Reproduced locally and live: an older free-text crank-no-start finding overrode a later guided no-crank observation, so the cause checklist and next question disagreed. The latest guided starting observation now takes precedence; cases without guided answers continue to use saved findings. Hazard handling is unchanged. Two regression cases cover no-crank and slow-crank after an earlier cranking attempt.
+
+Validation: 65 backend tests and six frontend suites, including garage/history, dependent pickers, uploads/provider failure mocks, backup, stale responses, and app failure recovery. Live smoke checks cover all six categories, catalog make dependencies, supported catalog examples, private profile/case reads and app assets. Real-camera/provider image accuracy, complete catalog coverage, cross-device persistence, load testing and PR2 external account configuration remain outside these checks.

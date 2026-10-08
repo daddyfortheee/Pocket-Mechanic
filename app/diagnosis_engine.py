@@ -86,7 +86,7 @@ def build_diagnostic_causes(
         return [make_cause("DSC / traction-control warning needs system checks", 0.6,
             "A DSC OFF indicator that stays lit and does not respond to its switch needs stability-control diagnosis. Normal drive power and inability to do a burnout do not identify a transmission fault or prove the cause.",
             ["Identify steady versus flashing DSC OFF, TCS / skidding-car, ABS and red brake warnings while parked.", "Record button response and any recent battery disconnection.", "Read exact ABS / DSC codes with a compatible scanner before clearing them; an engine-only reader is insufficient."],
-            ["Follow the exact manufacturer diagnostic procedure to confirm and correct the fault; do not replace a switch or sensor based only on a warning light.", "Verify warning-light behavior and normal DSC operation after service; do not use a burnout as a test."], "high")]
+            ["Follow the exact manufacturer diagnostic procedure to confirm and correct the fault; do not replace a switch or sensor based only on a warning light.", "Verify warning-light behavior and normal DSC operation after service; do not use a burnout as a test."], "medium")]
     if category == "automotive":
         findings = answers.get("findings", [])
         evidence = [symptom] + ([note for note in findings if isinstance(note, str)] if isinstance(findings, list) else [])

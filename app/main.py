@@ -46,7 +46,7 @@ ALLOWED_VIDEO_TYPES = {
     "video/quicktime",
 }
 
-app = FastAPI(title="Pocket Guru API", version="0.7.2")
+app = FastAPI(title="Pocket Guru API", version="0.7.3")
 app.include_router(vehicle_catalog_router)
 app.add_middleware(
     CORSMiddleware,
@@ -467,6 +467,8 @@ def create_diagnosis(req: DiagnosisRequest, request: Request) -> DiagnosisRespon
     req = req.model_copy(update={"answers": with_evidence(req.answers)})
     result = diagnose(req)
     result.guided_step = build_guided_step(req.category, req.symptom, req.answers, result.causes)
+    if result.guided_step.get("state") == "stop" and not result.safety_message.startswith("STOP"):
+        result.safety_message = "STOP USE. Follow the guided safety step before further testing."
     media = req.answers.get("media", [])
     if isinstance(media, list) and media:
         # Resolve server-issued records; never trust client-supplied file paths or MIME types.

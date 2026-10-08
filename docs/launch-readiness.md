@@ -75,3 +75,9 @@ The strongest next product milestones are verified accounts with durable owned c
 Reproduced locally and live: an older free-text crank-no-start finding overrode a later guided no-crank observation, so the cause checklist and next question disagreed. The latest guided starting observation now takes precedence; cases without guided answers continue to use saved findings. Hazard handling is unchanged. Two regression cases cover no-crank and slow-crank after an earlier cranking attempt.
 
 Validation: 65 backend tests and six frontend suites, including garage/history, dependent pickers, uploads/provider failure mocks, backup, stale responses, and app failure recovery. Live smoke checks cover all six categories, catalog make dependencies, supported catalog examples, private profile/case reads and app assets. Real-camera/provider image accuracy, complete catalog coverage, cross-device persistence, load testing and PR2 external account configuration remain outside these checks.
+
+## Bug-check release — October 8, 2026
+
+Reproduced in the live guided workflow: a DSC / traction-control warning with otherwise normal driving received the blanket high-severity “Do not operate” banner before any braking hazard was established. The initial DSC path now uses model-specific inspection precautions without declaring the vehicle inoperable. If the guided evidence identifies a red brake warning, abnormal braking, or another stop condition, the main safety banner now escalates with the stop step instead of contradicting it.
+
+Validation: 65 backend tests, six frontend suites and the dependency audit pass. Live catalog checks cover the 2004 Mazda make/model/engine dependency and the DSC workflow. This does not validate every warning-light combination, manufacturer procedure, catalog entry, real upload provider, mobile device, or load condition; PR2 account verification remains separate pending its external configuration.

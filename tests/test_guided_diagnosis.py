@@ -91,10 +91,14 @@ def test_dsc_complaint_has_targeted_path_and_not_transmission_guess():
     first=run(symptom=symptom)
     assert first['guided_step']['question_id']=='dsc_lights'
     assert 'DSC / traction-control' in first['causes'][0]['title']
+    assert first['causes'][0]['safety']=='medium'
+    assert not first['safety_message'].startswith('Do not operate')
     second=run([record('dsc_lights','off_only')],symptom=symptom)
     assert second['guided_step']['question_id']=='dsc_scan'
     assert 'ABS / DSC' in second['guided_step']['instruction']
-    assert run([record('dsc_lights','brake')],symptom=symptom)['guided_step']['state']=='stop'
+    brake=run([record('dsc_lights','brake')],symptom=symptom)
+    assert brake['guided_step']['state']=='stop'
+    assert brake['safety_message'].startswith('STOP')
     rows=[record('dsc_lights','off_only'),record('dsc_scan','codes')]
     assert run(rows,symptom=symptom)['guided_step']['question_id']=='check_dsc_fault_confirm'
     assert run(rows+[record('check_dsc_fault_confirm','confirmed','Fault isolated by technician')],symptom=symptom)['guided_step']['question_id']=='repair_retest'
